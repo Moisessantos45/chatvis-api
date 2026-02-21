@@ -1,26 +1,6 @@
 package main
 
 import (
-	"chatvis-chat/internal/app/auth/handleauth"
-	"chatvis-chat/internal/app/auth/serviceauth"
-	"chatvis-chat/internal/app/grupo"
-	"chatvis-chat/internal/app/grupo/handlegrupo"
-	"chatvis-chat/internal/app/grupo/servicegrupo"
-	"chatvis-chat/internal/app/grupousario"
-	"chatvis-chat/internal/app/grupousario/handlegrupousuario"
-	"chatvis-chat/internal/app/grupousario/servicegrupousuario"
-	"chatvis-chat/internal/app/ia"
-	"chatvis-chat/internal/app/mensaje"
-	"chatvis-chat/internal/app/mensaje/handlemensaje"
-	"chatvis-chat/internal/app/mensaje/servicemensaje"
-	"chatvis-chat/internal/app/routers"
-	"chatvis-chat/internal/app/usuario"
-	"chatvis-chat/internal/app/usuario/handleusuario"
-	"chatvis-chat/internal/app/usuario/serviceusuario"
-	"chatvis-chat/internal/app/websocket/handle"
-	"chatvis-chat/internal/app/websocket/hub"
-	"chatvis-chat/internal/db"
-	"chatvis-chat/internal/pkg/middleware"
 	"context"
 	"fmt"
 	"log"
@@ -36,6 +16,31 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/websocket/v2"
 	"github.com/joho/godotenv"
+
+	usuarioHttp "chatvis-chat/internal/usuario/delivery/http"
+	usuarioRepo "chatvis-chat/internal/usuario/repository"
+	usuarioUseCase "chatvis-chat/internal/usuario/usecase"
+
+	mensajeHttp "chatvis-chat/internal/mensaje/delivery/http"
+	mensajeRepo "chatvis-chat/internal/mensaje/repository"
+	mensajeUseCase "chatvis-chat/internal/mensaje/usecase"
+
+	grupoHttp "chatvis-chat/internal/grupo/delivery/http"
+	grupoRepo "chatvis-chat/internal/grupo/repository"
+	grupoUseCase "chatvis-chat/internal/grupo/usecase"
+
+	grupoUsuarioHttp "chatvis-chat/internal/grupousuario/delivery/http"
+	grupoUsuarioRepo "chatvis-chat/internal/grupousuario/repository"
+	grupoUsuarioUseCase "chatvis-chat/internal/grupousuario/usecase"
+
+	authHttp "chatvis-chat/internal/auth/delivery/http"
+	authUseCase "chatvis-chat/internal/auth/usecase"
+
+	"chatvis-chat/internal/ia"
+	appWs "chatvis-chat/internal/websocket"
+
+	"chatvis-chat/config/db"
+	"chatvis-chat/internal/pkg/middleware"
 )
 
 func main() {
@@ -70,27 +75,37 @@ func main() {
 	}))
 	fmt.Println("Hello, World!")
 
-	grupoUsuarios := grupousario.GruposUsuariosRepository{DB: db.DB}
+	// ******************************
+	// INYECCIÓN DE DEPENDENCIA DE USUARIO (Clean Architecture)
+	pgUserRepo := usuarioRepo.NewPostgresUsuarioRepository(db.DB)
+	userUseCase := usuarioUseCase.NewUsuarioUseCase(pgUserRepo)
+	// ******************************
 
-	grupoRepository := grupo.GrupoRepository{DB: db.DB, RepoRelaciones: &grupoUsuarios}
-	grupoService := servicegrupo.NewGrupoService(grupoRepository)
-	grupoController := &handlegrupo.GrupoController{Service: grupoService}
+	// ******************************
+	// INYECCIÓN DE DEPENDENCIA DE MENSAJE (Clean Architecture)
+	pgMensajeRepo := mensajeRepo.NewPostgresMensajeRepository(db.DB)
+	msgUseCase := mensajeUseCase.NewMensajeUseCase(pgMensajeRepo)
+	// ******************************
 
-	usuarioRepository := usuario.UsuarioRepository{DB: db.DB}
-	usuarioService := serviceusuario.NewUsuarioUseCase(usuarioRepository)
-	usuarioController := &handleusuario.UsuarioController{Service: usuarioService}
+	// ******************************
+	// INYECCIÓN DE DEPENDENCIA DE GRUPO (Clean Architecture)
+	pgGrupoRepo := grupoRepo.NewPostgresGrupoRepository(db.DB)
+	grpUseCase := grupoUseCase.NewGrupoUseCase(pgGrupoRepo)
+	// ******************************
 
-	mensajeRepository := mensaje.MensajeRepository{DB: db.DB}
-	mensajeService := servicemensaje.NewMensajeService(mensajeRepository)
-	mensajeController := &handlemensaje.MensajeController{Service: mensajeService}
+	// ******************************
+	// INYECCIÓN DE DEPENDENCIA DE GRUPO_USUARIO (Clean Architecture)
+	pgGrupoUsuarioRepo := grupoUsuarioRepo.NewPostgresGrupoUsuarioRepository(db.DB)
+	grpUsuarioUseCase := grupoUsuarioUseCase.NewGrupoUsuarioUseCase(pgGrupoUsuarioRepo, pgGrupoRepo)
+	// ******************************
 
-	autservice := serviceauth.NewServiceAuth(usuarioRepository)
-	authController := &handleauth.AuthController{
-		Service: autservice,
-	}
+	// ******************************
+	// INYECCIÓN DE DEPENDENCIA DE AUTH (Clean Architecture)
+	authUsecase := authUseCase.NewAuthUseCase(pgUserRepo)
+	// ******************************
 
 	// Inicialización del Hub y el controlador de WebSocket
-	wsHub := hub.NewHub()
+	wsHub := appWs.NewHub()
 	go wsHub.Run()
 
 	// --- Inicialización de los servicios de IA ---
@@ -99,7 +114,7 @@ func main() {
 
 	aiServices := make(map[string]*ia.AIService)
 	for _, config := range ia.AiConfigurations {
-		aiService := ia.NewAIService(wsHub, mensajeService, grupoService, config)
+		aiService := ia.NewAIService(wsHub, msgUseCase, grpUseCase, config)
 		aiServices[config.UserID] = aiService
 		go aiService.Start(ctx, 5) // 5 workers por servicio
 	}
@@ -123,11 +138,13 @@ func main() {
 	}()
 
 	// Pasar el Hub Y el GrupoService al controlador de WebSocket
-	webSocketController := handle.NewWebSocketController(wsHub, grupoService)
+	webSocketController := appWs.NewWebSocketController(wsHub, grpUseCase)
 
 	public := app.Group("/api/public")
-	routers.RegisterUsuarioRoutesBasicNotAuth(public, usuarioController)
-	routers.RegisterAuthRoutes(public, authController)
+
+	// Registro de rutas publicas
+	usuarioHttp.NewUsuarioPublicHandler(public, userUseCase)
+	authHttp.NewAuthHandler(public, authUsecase)
 
 	//WebSocket se define en el grupo protegido
 	public.Get("/ws/chat", webSocketController.WebSocketUpgrade, websocket.New(webSocketController.WebSocketChat))
@@ -136,22 +153,20 @@ func main() {
 	protected.Use(middleware.JWTAuthMiddleware())
 
 	auth := protected.Group("/auth")
-	routers.RegisterAuthRoutesWithMiddleware(auth, authController)
+	authHttp.NewAuthProtectedHandler(auth, authUsecase)
 
 	grupo := protected.Group("/grupo")
-	routers.RegisterGrupoRoutes(grupo, grupoController)
+	grupoHttp.NewGrupoHandler(grupo, grpUseCase)
 
-	usuario := protected.Group("/usuario")
-	routers.RegisterUsuarioRoutes(usuario, usuarioController)
+	usuarioGrp := protected.Group("/usuario")
+	// Registro de rutas privadas
+	usuarioHttp.NewUsuarioHandler(usuarioGrp, userUseCase)
 
-	mensaje := protected.Group("/mensaje")
-	routers.RegisterMensajeRoutes(mensaje, mensajeController)
+	mensajeGrp := protected.Group("/mensaje")
+	mensajeHttp.NewMensajeHandler(mensajeGrp, msgUseCase)
 
-	grupoUsuario := protected.Group("/grupo-usuario")
-	handleGrupoUsuario := grupousario.GruposUsuariosRepository{DB: db.DB}
-	grupoUsuarioService := servicegrupousuario.NewGruposUsuariosServiceClient(handleGrupoUsuario, grupoRepository)
-	grupoUsuarioController := &handlegrupousuario.GruposUsuariosController{Service: grupoUsuarioService}
-	routers.RegisterGrupoUsuarioRoutes(grupoUsuario, grupoUsuarioController)
+	grupoUsuarioGrp := protected.Group("/grupo-usuario")
+	grupoUsuarioHttp.NewGrupoUsuarioHandler(grupoUsuarioGrp, grpUsuarioUseCase)
 
 	// --- Señales de cierre ---
 	c := make(chan os.Signal, 1)
