@@ -114,7 +114,7 @@ func main() {
 
 			// Mandar al servicio de IA correspondiente
 			for _, service := range aiServices {
-				if wsHub.CheckUserInGroup(service.UserID, msg.GroupID) {
+				if wsHub.CheckUserInGroup(service.Config.UserID, msg.GroupID) {
 					service.InputChannel() <- msg
 					break
 				}

@@ -21,10 +21,7 @@ type AIService struct {
 	GrupoService  *servicegrupo.GrupoService
 	conversations sync.Map
 
-	UserID     string
-	LLMBaseURL string
-	LLName     string
-	LLMAPIKey  string
+	Config IAConfig
 
 	inputChannel chan hub.Message
 	jobs         chan hub.Message
@@ -37,10 +34,7 @@ func NewAIService(h *hub.Hub, mr *servicemensaje.MensajeService, gs *servicegrup
 		Hub:          h,
 		MensajeRepo:  mr,
 		quit:         make(chan struct{}),
-		UserID:       config.UserID,
-		LLMBaseURL:   config.LLMBaseURL,
-		LLName:       config.LLMName,
-		LLMAPIKey:    config.LLMAPIKey,
+		Config:       config,
 		inputChannel: make(chan hub.Message, 100), // Buffer para manejar ráfagas de mensajes
 		jobs:         make(chan hub.Message, 100), // Canal de trabajos para el pool de workers
 		GrupoService: gs,
@@ -69,7 +63,7 @@ func (s *AIService) Start(ctx context.Context, workerCount int) {
 
 func (s *AIService) SuscribeToGroup() error {
 
-	idUsuario, err := strconv.ParseUint(s.UserID, 10, 64)
+	idUsuario, err := strconv.ParseUint(s.Config.UserID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -79,7 +73,7 @@ func (s *AIService) SuscribeToGroup() error {
 		return err
 	}
 
-	s.Hub.SubscribeUserToGroups(s.UserID, aiUserID)
+	s.Hub.SubscribeUserToGroups(s.Config.UserID, aiUserID)
 
 	return nil
 }
@@ -100,12 +94,12 @@ func (s *AIService) listenForMessages(ctx context.Context) {
 			log.Printf("AIService: recibido mensaje en AIChannel: %+v", msg)
 
 			// 1. Opcional: Evita que la IA responda a sus propios mensajes.
-			if msg.SenderID == s.UserID {
+			if msg.SenderID == s.Config.UserID {
 				continue
 			}
 
 			// 2. Verifica si la IA está en el grupo.
-			if !s.Hub.CheckUserInGroup(s.UserID, msg.GroupID) {
+			if !s.Hub.CheckUserInGroup(s.Config.UserID, msg.GroupID) {
 				log.Printf("AIService: La IA no está en el grupo %s, no responde.", msg.GroupID)
 				continue
 			}
@@ -152,7 +146,7 @@ func (s *AIService) generateAndSendResponse(incomingMsg hub.Message) {
 
 	// llmBaseURL := os.Getenv("LLM_BASE_URL")
 	// 3.4. Llamar a la función del cliente LLM con todo el historial
-	aiResponse, err := llm.PostCompletionOllamaPrompt(llmMessages, s.LLMBaseURL, s.LLName, s.LLMAPIKey)
+	aiResponse, err := llm.PostCompletionOllamaPrompt(llmMessages, s.Config.LLMBaseURL, s.Config.LLMName, s.Config.LLMAPIKey)
 	if err != nil {
 		log.Printf("Error al generar respuesta de IA: %v", err)
 		return
@@ -164,7 +158,7 @@ func (s *AIService) generateAndSendResponse(incomingMsg hub.Message) {
 	}
 
 	// 3.5. Crear y enviar el mensaje de la IA al Hub tenemos que usar la funcion ParseAIResponse
-	aiMsg, err := s.ParseAIResponse(aiResponse, incomingMsg.GroupID, s.UserID)
+	aiMsg, err := s.ParseAIResponse(aiResponse, incomingMsg.GroupID, s.Config.UserID)
 	if err != nil {
 		log.Printf("Error al parsear la respuesta de IA: %v", err)
 		return
@@ -186,15 +180,17 @@ func (s *AIService) generateAndSendResponse(incomingMsg hub.Message) {
 
 func (s *AIService) buildPromptFromHistory(mensajes []app.Mensajes) []llm.ChatMessage {
 	var chatMessages []llm.ChatMessage
-	chatMessages = append(chatMessages, llm.ChatMessage{
-		Role:    "system",
-		Content: s.getSystemPrompt()})
-	aiUserIDUint, _ := strconv.ParseUint(s.UserID, 10, 64)
-
+	aiUserIDUint, _ := strconv.ParseUint(s.Config.UserID, 10, 64)
+	if s.Config.IsPromt {
+		chatMessages = append(chatMessages, llm.ChatMessage{
+			Role:    "system",
+			Content: s.getSystemPrompt()})
+		aiUserIDUint, _ = strconv.ParseUint(s.Config.UserID, 10, 64)
+	}
 	// Itera sobre los mensajes de la base de datos para construir el historial.
 	for _, msg := range mensajes {
 		role := "user"
-		if msg.UsuarioId == aiUserIDUint {
+		if msg.UsuarioId == aiUserIDUint && s.Config.IsPromt {
 			role = "assistant"
 		}
 
