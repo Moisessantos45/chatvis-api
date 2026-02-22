@@ -112,30 +112,43 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	enableAI := os.Getenv("ENABLE_AI_MODELS")
 	aiServices := make(map[string]*ia.AIService)
-	for _, config := range ia.AiConfigurations {
-		aiService := ia.NewAIService(wsHub, msgUseCase, grpUseCase, config)
-		aiServices[config.UserID] = aiService
-		go aiService.Start(ctx, 5) // 5 workers por servicio
-	}
 
-	// --- Enrutamiento de mensajes hacia las IA ---
-	go func() {
-		for msg := range wsHub.AIChannel() {
-			// Ignorar mensajes de las propias IA
-			if _, ok := aiServices[msg.SenderID]; ok {
-				continue
-			}
+	if enableAI == "true" {
+		log.Println("🤖 Servicios de IA Habilitados (ENABLE_AI_MODELS=true)")
+		for _, config := range ia.AiConfigurations {
+			aiService := ia.NewAIService(wsHub, msgUseCase, grpUseCase, config)
+			aiServices[config.UserID] = aiService
+			go aiService.Start(ctx, 5) // 5 workers por servicio
+		}
 
-			// Mandar al servicio de IA correspondiente
-			for _, service := range aiServices {
-				if wsHub.CheckUserInGroup(service.Config.UserID, msg.GroupID) {
-					service.InputChannel() <- msg
-					break
+		// --- Enrutamiento de mensajes hacia las IA ---
+		go func() {
+			for msg := range wsHub.AIChannel() {
+				// Ignorar mensajes de las propias IA
+				if _, ok := aiServices[msg.SenderID]; ok {
+					continue
+				}
+
+				// Mandar al servicio de IA correspondiente
+				for _, service := range aiServices {
+					if wsHub.CheckUserInGroup(service.Config.UserID, msg.GroupID) {
+						service.InputChannel() <- msg
+						break
+					}
 				}
 			}
-		}
-	}()
+		}()
+	} else {
+		log.Println("🛑 Servicios de IA Deshabilitados. Cambiar ENABLE_AI_MODELS=true en .env para activar.")
+		// Opcional: Podrías querer drenar el AIChannel si no se usa para evitar que se bloquee la memoria
+		go func() {
+			for range wsHub.AIChannel() {
+				// Sink (descarte de mensajes)
+			}
+		}()
+	}
 
 	// Pasar el Hub Y el GrupoService al controlador de WebSocket
 	webSocketController := appWs.NewWebSocketController(wsHub, grpUseCase)
