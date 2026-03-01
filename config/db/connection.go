@@ -20,7 +20,7 @@ func Connect() error {
 	port := os.Getenv("PORT")
 
 	// DSN := "host=localhost user=developer password=RootPg dbname=credigest port=5432"
-	DSN := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s", host, user, password, dbname, port)
+	DSN := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable", host, user, password, dbname, port)
 
 	DB, err = gorm.Open(postgres.Open(DSN), &gorm.Config{})
 

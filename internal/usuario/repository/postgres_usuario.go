@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"chatvis-chat/internal/models"
 	"chatvis-chat/internal/domain"
+	"chatvis-chat/internal/models"
 	"errors"
 
 	"gorm.io/gorm"
@@ -31,6 +31,8 @@ func mapGormToDomain(gormUser *models.Usuarios) *domain.Usuario {
 		Fecha:    gormUser.Fecha,
 		Token:    gormUser.Token,
 		IsLlm:    gormUser.IsLlm,
+		IsAdmin:  gormUser.IsAdmin,
+		IsActive: gormUser.IsActive,
 	}
 }
 
@@ -48,6 +50,8 @@ func mapDomainToGorm(domainUser *domain.Usuario) *models.Usuarios {
 		Fecha:    domainUser.Fecha,
 		Token:    domainUser.Token,
 		IsLlm:    domainUser.IsLlm,
+		IsAdmin:  domainUser.IsAdmin,
+		IsActive: domainUser.IsActive,
 	}
 }
 
@@ -103,6 +107,33 @@ func (r *postgresUsuarioRepository) UpdateToken(id uint64, token string) error {
 	}
 
 	existingGormUser.Token = token
+
+	if err := r.db.Save(&existingGormUser).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *postgresUsuarioRepository) GetAllUsuarios() ([]domain.Usuario, error) {
+	var gormUsers []models.Usuarios
+	if err := r.db.Find(&gormUsers).Error; err != nil {
+		return nil, err
+	}
+	var users []domain.Usuario
+	for _, gu := range gormUsers {
+		users = append(users, *mapGormToDomain(&gu))
+	}
+	return users, nil
+}
+
+func (r *postgresUsuarioRepository) UpdateIsActive(id uint64, isActive bool) error {
+	var existingGormUser models.Usuarios
+	if err := r.db.First(&existingGormUser, id).Error; err != nil {
+		return err
+	}
+
+	existingGormUser.IsActive = isActive
 
 	if err := r.db.Save(&existingGormUser).Error; err != nil {
 		return err

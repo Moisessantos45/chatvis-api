@@ -65,3 +65,32 @@ func (u *grupoUsuarioUseCase) JoinGroup(userId uint64, clave string) error {
 
 	return u.repo.Create(newGroupUser)
 }
+
+func (u *grupoUsuarioUseCase) JoinGroups(usersIds []uint64, gruposIds []uint64) error {
+	log.Println("JoinGroups - IDs Usuarios:", usersIds)
+
+	if len(usersIds) == 0 {
+		return errors.New("la lista de IDs de usuarios debe tener al menos un elemento")
+	}
+
+
+	if len(gruposIds) == 0 {
+		return errors.New("la lista de IDs de grupos debe tener al menos un elemento")
+	}
+
+	// 2. Crear relaciones
+	for _, userId := range usersIds {
+		for _, groupId := range gruposIds {
+			newGroupUser := &domain.GrupoUsuario{
+				IdGrupo:   groupId,
+				IdUsuario: userId,
+			}
+
+			if err := u.repo.Create(newGroupUser); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}

@@ -61,6 +61,8 @@ func main() {
 		return
 	}
 
+	db.SeedDefaultAdmin()
+
 	fmt.Println("¡Hola, mundo desde Go!")
 
 	app := fiber.New()
@@ -73,36 +75,23 @@ func main() {
 		ExposeHeaders: "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Access-Control-Allow-Methods",
 		MaxAge:        300,
 	}))
+
 	fmt.Println("Hello, World!")
 
-	// ******************************
-	// INYECCIÓN DE DEPENDENCIA DE USUARIO (Clean Architecture)
+	// Inyección de dependencias
 	pgUserRepo := usuarioRepo.NewPostgresUsuarioRepository(db.DB)
 	userUseCase := usuarioUseCase.NewUsuarioUseCase(pgUserRepo)
-	// ******************************
 
-	// ******************************
-	// INYECCIÓN DE DEPENDENCIA DE MENSAJE (Clean Architecture)
 	pgMensajeRepo := mensajeRepo.NewPostgresMensajeRepository(db.DB)
 	msgUseCase := mensajeUseCase.NewMensajeUseCase(pgMensajeRepo)
-	// ******************************
 
-	// ******************************
-	// INYECCIÓN DE DEPENDENCIA DE GRUPO (Clean Architecture)
 	pgGrupoRepo := grupoRepo.NewPostgresGrupoRepository(db.DB)
 	grpUseCase := grupoUseCase.NewGrupoUseCase(pgGrupoRepo)
-	// ******************************
 
-	// ******************************
-	// INYECCIÓN DE DEPENDENCIA DE GRUPO_USUARIO (Clean Architecture)
 	pgGrupoUsuarioRepo := grupoUsuarioRepo.NewPostgresGrupoUsuarioRepository(db.DB)
 	grpUsuarioUseCase := grupoUsuarioUseCase.NewGrupoUsuarioUseCase(pgGrupoUsuarioRepo, pgGrupoRepo)
-	// ******************************
 
-	// ******************************
-	// INYECCIÓN DE DEPENDENCIA DE AUTH (Clean Architecture)
 	authUsecase := authUseCase.NewAuthUseCase(pgUserRepo)
-	// ******************************
 
 	// Inicialización del Hub y el controlador de WebSocket
 	wsHub := appWs.NewHub()
@@ -112,41 +101,44 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	enableAI := os.Getenv("ENABLE_AI_MODELS")
 	aiServices := make(map[string]*ia.AIService)
-	for _, config := range ia.AiConfigurations {
-		aiService := ia.NewAIService(wsHub, msgUseCase, grpUseCase, config)
-		aiServices[config.UserID] = aiService
-		go aiService.Start(ctx, 5) // 5 workers por servicio
-	}
 
-	// --- Enrutamiento de mensajes hacia las IA ---
-	go func() {
-		for msg := range wsHub.AIChannel() {
-			// Ignorar mensajes de las propias IA
-			if _, ok := aiServices[msg.SenderID]; ok {
-				continue
-			}
+	if enableAI == "true" {
+		log.Println("Servicios de IA Habilitados (ENABLE_AI_MODELS=true)")
+		for _, config := range ia.AiConfigurations {
+			aiService := ia.NewAIService(wsHub, msgUseCase, grpUseCase, userUseCase, config)
+			aiServices[config.UserID] = aiService
+			go aiService.Start(ctx, 5) // 5 workers por servicio
+		}
 
-			// Mandar al servicio de IA correspondiente
-			for _, service := range aiServices {
-				if wsHub.CheckUserInGroup(service.Config.UserID, msg.GroupID) {
-					service.InputChannel() <- msg
-					break
+		// Enrutamiento de mensajes hacia las IA
+		go func() {
+			for msg := range wsHub.AIChannel() {
+				if _, ok := aiServices[msg.SenderID]; ok {
+					continue
+				}
+				for _, service := range aiServices {
+					if wsHub.CheckUserInGroup(service.Config.UserID, msg.GroupID) {
+						service.InputChannel() <- msg
+						break
+					}
 				}
 			}
-		}
-	}()
+		}()
+	} else {
+		log.Println("Servicios de IA Deshabilitados. Cambiar ENABLE_AI_MODELS=true en .env para activar.")
+		go func() {
+			for range wsHub.AIChannel() {
+			}
+		}()
+	}
 
-	// Pasar el Hub Y el GrupoService al controlador de WebSocket
 	webSocketController := appWs.NewWebSocketController(wsHub, grpUseCase)
 
 	public := app.Group("/api/public")
-
-	// Registro de rutas publicas
 	usuarioHttp.NewUsuarioPublicHandler(public, userUseCase)
 	authHttp.NewAuthHandler(public, authUsecase)
-
-	//WebSocket se define en el grupo protegido
 	public.Get("/ws/chat", webSocketController.WebSocketUpgrade, websocket.New(webSocketController.WebSocketChat))
 
 	protected := app.Group("/api")
@@ -155,18 +147,23 @@ func main() {
 	auth := protected.Group("/auth")
 	authHttp.NewAuthProtectedHandler(auth, authUsecase)
 
-	grupo := protected.Group("/grupo")
+	grupo := protected.Group("/group")
 	grupoHttp.NewGrupoHandler(grupo, grpUseCase)
 
-	usuarioGrp := protected.Group("/usuario")
-	// Registro de rutas privadas
+	usuarioGrp := protected.Group("/user")
 	usuarioHttp.NewUsuarioHandler(usuarioGrp, userUseCase)
 
 	mensajeGrp := protected.Group("/mensaje")
 	mensajeHttp.NewMensajeHandler(mensajeGrp, msgUseCase)
 
-	grupoUsuarioGrp := protected.Group("/grupo-usuario")
+	grupoUsuarioGrp := protected.Group("/group-user")
 	grupoUsuarioHttp.NewGrupoUsuarioHandler(grupoUsuarioGrp, grpUsuarioUseCase)
+
+	admin := protected.Group("/admin")
+	admin.Use(middleware.AdminAuthMiddleware())
+	usuarioHttp.NewAdminUsuarioHandler(admin, userUseCase)
+	grupoHttp.NewAdminGrupoHandler(admin, grpUseCase)
+	grupoUsuarioHttp.NewAdminGrupoUsuarioHandler(admin, grpUsuarioUseCase)
 
 	// --- Señales de cierre ---
 	c := make(chan os.Signal, 1)
@@ -187,7 +184,6 @@ func main() {
 	cancel()
 	wsHub.Shutdown()
 
-	// Detener Fiber con timeout
 	ctxTimeout, cancelTimeout := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelTimeout()
 	if err := app.ShutdownWithContext(ctxTimeout); err != nil {

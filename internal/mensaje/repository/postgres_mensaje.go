@@ -1,9 +1,10 @@
 package repository
 
 import (
-	"chatvis-chat/internal/models"
 	"chatvis-chat/internal/domain"
+	"chatvis-chat/internal/models"
 	"errors"
+	"log"
 	"time"
 
 	"gorm.io/gorm"
@@ -100,8 +101,13 @@ func (r *postgresMensajeRepository) GetAllByGrupoId(grupoId uint64) ([]domain.Me
 		return nil, err
 	}
 
+	if len(gormMensajes) == 0 {
+		return []domain.Mensaje{}, nil
+	}
+
 	var mensajes []domain.Mensaje
 	for _, gm := range gormMensajes {
+		log.Println("Mensaje: ", gm)
 		mensajes = append(mensajes, *mapGormToDomainMensaje(&gm))
 	}
 

@@ -126,3 +126,21 @@ func (uc *usuarioUseCase) Update(id uint64, usuario domain.Usuario) error {
 
 	return uc.repo.Update(id, *existingUsuario)
 }
+
+func (uc *usuarioUseCase) GetAllUsuarios() ([]domain.Usuario, error) {
+	return uc.repo.GetAllUsuarios()
+}
+
+func (uc *usuarioUseCase) UpdateIsActive(id uint64, isActive bool) error {
+	if id == 0 {
+		return errors.New("id no puede ser 0")
+	}
+	return uc.repo.UpdateIsActive(id, isActive)
+}
+
+func (uc *usuarioUseCase) ClearToken(id uint64) error {
+	if id == 0 {
+		return errors.New("id no puede ser 0")
+	}
+	return uc.repo.UpdateToken(id, "")
+}

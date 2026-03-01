@@ -17,11 +17,12 @@ type MyClaims struct {
 	Username  string `json:"username"`
 	Useremail string `json:"useremail"`
 	Token     string `json:"token,omitempty"` // Opcional, si necesitas incluir un token específico
+	IsAdmin   bool   `json:"isAdmin"`         // Indica si el usuario es administrador
 	jwt.RegisteredClaims
 }
 
 // GenerateJWT genera un nuevo token JWT para un usuario dado.
-func GenerateJWT(id string, username string, email string) (string, error) {
+func GenerateJWT(id string, username string, email string, isAdmin bool) (string, error) {
 	var JwtSecret = []byte(os.Getenv("SECRET_KEY_JWT"))
 
 	// Define la fecha de expiración del token (ej. 24 horas a partir de ahora)
@@ -31,6 +32,7 @@ func GenerateJWT(id string, username string, email string) (string, error) {
 		Id:        id,
 		Username:  username,
 		Useremail: email,
+		IsAdmin:   isAdmin,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

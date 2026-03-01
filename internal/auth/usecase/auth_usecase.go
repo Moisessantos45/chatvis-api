@@ -35,7 +35,7 @@ func (s *authUseCase) Authenticate(email, password string) (*domain.Usuario, err
 	}
 
 	// Generate a new token for the user
-	token, err := pkg.GenerateJWT(fmt.Sprint(user.Id), user.Nombre, user.Email)
+	token, err := pkg.GenerateJWT(fmt.Sprint(user.Id), user.Nombre, user.Email, user.IsAdmin)
 	if err != nil {
 		return nil, err
 	}
