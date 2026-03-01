@@ -1,6 +1,7 @@
 # Documentación del Proyecto Chatvist-Chat
 
 ## Descripción General
+
 Chatvist-Chat es un sistema de chat en tiempo real desarrollado en Go que integra modelos de Inteligencia Artificial (IA) como participantes activos en las conversaciones. El sistema permite a usuarios humanos y agentes de IA interactuar simultáneamente en grupos de chat.
 
 ---
@@ -14,37 +15,31 @@ chatvist-chat/
 ├── go.sum                     # Checksums de dependencias
 ├── .env                       # Variables de entorno
 ├── tmp/                       # Archivos temporales
+├── config/                    # Configuración externa
+│   └── db/                    # Gestión de base de datos
+│       ├── connection.go      # Conexión a PostgreSQL
+│       └── inicialized.go     # Inicialización de tablas
 └── internal/
-    ├── app/                   # Lógica de la aplicación
-    │   ├── auth/              # Autenticación y autorización
-    │   │   ├── handleauth/    # Controladores de autenticación
-    │   │   └── serviceauth/   # Casos de uso de autenticación
-    │   ├── grupo/             # Gestión de grupos de chat
-    │   │   ├── handlegrupo/   # Controladores de grupos
-    │   │   └── servicegrupo/  # Casos de uso de grupos
-    │   ├── grupousario/       # Relación usuarios-grupos
-    │   │   ├── handlegrupousuario/
-    │   │   └── servicegrupousuario/
-    │   ├── usuario/           # Gestión de usuarios
-    │   │   ├── handleusuario/
-    │   │   └── serviceusuario/
-    │   ├── mensaje/           # Gestión de mensajes
-    │   │   ├── handlemensaje/
-    │   │   └── servicemensaje/
-    │   ├── ia/                # Servicios de Inteligencia Artificial
-    │   │   ├── iaConfig.go    # Configuración de modelos IA
-    │   │   └── service.go     # Servicio de procesamiento IA
-    │   ├── llm/               # Cliente de modelos de lenguaje
-    │   │   └── chatllm.go     # Comunicación con LLMs
-    │   ├── websocket/         # Comunicación en tiempo real
-    │   │   ├── handle/        # Manejadores de WebSocket
-    │   │   └── hub/           # Hub central de mensajería
-    │   ├── routers/           # Definición de rutas HTTP
-    │   └── models.go          # Modelos de datos (GORM)
-    ├── db/                    # Gestión de base de datos
-    │   ├── connection.go      # Conexión a PostgreSQL
-    │   └── inicialized.go     # Inicialización de tablas
-    └── pkg/                   # Utilidades compartidas
+    ├── auth/              # Autenticación y autorización (Clean Architecture)
+    │   ├── delivery/      # Controladores HTTP
+    │   └── usecase/       # Casos de uso de autenticación
+    ├── domain/            # Modelos de dominio e interfaces
+    ├── grupo/             # Gestión de grupos de chat
+    │   ├── delivery/      # Controladores HTTP
+    │   ├── repository/    # Acceso a datos
+    │   └── usecase/       # Casos de uso
+    ├── grupousario/       # Relación usuarios-grupos
+    ├── usuario/           # Gestión de usuarios
+    ├── mensaje/           # Gestión de mensajes
+    ├── ia/                # Servicios de Inteligencia Artificial
+    │   ├── iaConfig.go    # Configuración de modelos IA
+    │   └── service.go     # Servicio de procesamiento IA
+    ├── llm/               # Cliente de modelos de lenguaje
+    │   └── chatllm.go     # Comunicación con LLMs
+    ├── websocket/         # Comunicación en tiempo real
+    │   ├── handler.go     # Manejadores de WebSocket
+    │   └── hub.go         # Hub central de mensajería
+    └── pkg/               # Utilidades compartidas
         ├── brcrypt.go         # Encriptación de contraseñas
         ├── generateJwt.go     # Generación de tokens JWT
         ├── generateid.go      # Generación de identificadores
@@ -58,7 +53,8 @@ chatvist-chat/
 
 ## Componentes Principales
 
-### 1. **WebSocket Hub (`internal/app/websocket/hub/`)**
+### 1. **WebSocket Hub (`internal/websocket/`)**
+
 - **Función**: Centro de distribución de mensajes en tiempo real
 - **Características**:
   - Gestiona conexiones de usuarios mediante WebSocket
@@ -67,9 +63,10 @@ chatvist-chat/
   - Mantiene mapeo de usuarios a grupos (`userGroups`)
   - Thread-safe mediante mutex
 
-### 2. **Sistema de IA (`internal/app/ia/`)**
+### 2. **Sistema de IA (`internal/ia/`)**
 
 #### Configuración de IAs (`iaConfig.go`)
+
 Define múltiples instancias de IA con diferentes modelos:
 
 ```go
@@ -82,10 +79,12 @@ type IAConfig struct {
 ```
 
 **Configuraciones predefinidas:**
+
 - **IA Usuario 1**: Puerto 11434, modelo "gpt-oss"
 - **IA Usuario 2**: Puerto 11435, modelo "deepseek-r1"
 
 #### Servicio de IA (`service.go`)
+
 - **Pool de Workers**: Cada IA tiene 5 workers concurrentes para procesar mensajes
 - **Flujo de procesamiento**:
   1. Escucha mensajes del canal `inputChannel`
@@ -97,14 +96,16 @@ type IAConfig struct {
   7. Guarda mensaje de IA en base de datos
   8. Difunde respuesta a través del Hub
 
-### 3. **Cliente LLM (`internal/app/llm/chatllm.go`)**
+### 3. **Cliente LLM (`internal/llm/chatllm.go`)**
+
 - **Función**: Comunicación HTTP con servidores de modelos de lenguaje
 - **Protocolo**: Envía conversaciones completas en formato JSON
 - **Respuesta esperada**: `{"content": "...", "answer_id": "..."}`
 
-### 4. **Modelos de Datos (`internal/app/models.go`)**
+### 4. **Modelos de Datos (`internal/domain/`)**
 
 #### Usuarios
+
 ```go
 type Usuarios struct {
     Id       uint64
@@ -118,6 +119,7 @@ type Usuarios struct {
 ```
 
 #### Grupos
+
 ```go
 type Grupos struct {
     Id          uint64
@@ -129,6 +131,7 @@ type Grupos struct {
 ```
 
 #### Mensajes
+
 ```go
 type Mensajes struct {
     Id         uint64
@@ -141,6 +144,7 @@ type Mensajes struct {
 ```
 
 #### Relación Grupos-Usuarios
+
 ```go
 type GruposUsuarios struct {
     IdGrupo   uint64
@@ -155,16 +159,19 @@ type GruposUsuarios struct {
 ### Dependencias Principales (`go.mod`)
 
 #### Framework Web
+
 - **`github.com/gofiber/fiber/v2` (v2.52.9)**
   - Framework HTTP de alto rendimiento
   - Manejo de rutas, middleware y respuestas
 
 #### WebSocket
+
 - **`github.com/gofiber/websocket/v2` (v2.2.1)**
   - Implementación de WebSocket para Fiber
   - Comunicación bidireccional en tiempo real
 
 #### Base de Datos
+
 - **`gorm.io/gorm` (v1.30.1)**
   - ORM para Go
   - Migraciones y gestión de modelos
@@ -173,6 +180,7 @@ type GruposUsuarios struct {
   - Driver de PostgreSQL para GORM
 
 #### Seguridad
+
 - **`golang.org/x/crypto` (v0.31.0)**
   - Encriptación bcrypt para contraseñas
 
@@ -180,6 +188,7 @@ type GruposUsuarios struct {
   - Generación y validación de tokens JWT
 
 #### Utilidades
+
 - **`github.com/google/uuid` (v1.6.0)**
   - Generación de identificadores únicos
 
@@ -187,6 +196,7 @@ type GruposUsuarios struct {
   - Carga de variables de entorno desde `.env`
 
 ### Instalación de Dependencias
+
 ```bash
 go mod download
 ```
@@ -198,33 +208,39 @@ go mod download
 ### Puertos del Sistema
 
 #### Backend (Chatvist-Chat)
+
 - **Puerto 3100**: Servidor HTTP/WebSocket principal
   - Rutas API REST: `http://localhost:3100/api/`
   - WebSocket: `ws://localhost:3100/api/public/ws/chat`
 
 #### Base de Datos
+
 - **Puerto 5432**: PostgreSQL
-  - Host: `localhost`
-  - Base de datos: `chatvist_chat`
-  - Usuario: `chatvis_chat`
+  - Host: `ip_bd`
+  - Base de datos: `name_bd`
+  - Usuario: `name_bd`
   - Contraseña: configurada en `.env`
 
 #### Modelos de IA (LLMs)
 
 ##### IA Usuario 1 (gpt-oss)
+
 - **Puerto 11434**: `http://localhost:11434/api/chat`
 - Modelo: `gpt-oss`
 - Requiere servidor Ollama u compatible
 
 ##### IA Usuario 2 (deepseek-r1)
+
 - **Puerto 11435**: `http://localhost:11435/api/chat`
 - Modelo: `deepseek-r1`
 - Requiere servidor Ollama u compatible
 
 #### Frontend (si aplica)
+
 - **Puerto 5173**: Cliente web (configurado en CORS)
 
 ### Configuración CORS
+
 ```go
 AllowOrigins: "http://localhost:5173"
 AllowMethods: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
@@ -236,14 +252,14 @@ AllowMethods: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
 
 ```env
 # Base de datos PostgreSQL
-HOST=localhost
+HOST=ip_bd
 PORT=5432
-DBUSER=chatvis_chat
-PASSWORD=c#12oTU3#
-DBNAME=chatvist_chat
+DBUSER=name_bd
+PASSWORD=password_bd
+DBNAME=name_bd
 
 # Autenticación JWT
-SECRET_KEY_JWT=26tygshg2221
+SECRET_KEY_JWT=jwt_secret_key
 
 # LLM Base (puede ser usado como fallback)
 LLM_BASE_URL=http://localhost:1234
@@ -251,6 +267,9 @@ LLM_BASE_URL=http://localhost:1234
 # API Keys para modelos IA
 LLM_API_KEY_1=<tu_api_key_modelo_1>
 LLM_API_KEY_2=<tu_api_key_modelo_2>
+
+# Feature flag para apagar/encender la Inteligencia Artificial
+ENABLE_AI_MODELS=false
 ```
 
 ---
@@ -287,11 +306,13 @@ func (s *AIService) SuscribeToGroup() error {
 ### 3. **Flujo de Mensajes con IA**
 
 #### Paso 1: Usuario envía mensaje
+
 ```
 Usuario → WebSocket → Hub.Broadcast()
 ```
 
 #### Paso 2: Hub distribuye el mensaje
+
 ```go
 // Envía a todos los usuarios del grupo
 for userID, conn := range h.clients {
@@ -304,13 +325,14 @@ h.aiChannel <- msg
 ```
 
 #### Paso 3: Router de IA procesa el mensaje
+
 ```go
 for msg := range wsHub.AIChannel() {
     // Ignora mensajes de las propias IAs
     if _, ok := aiServices[msg.SenderID]; ok {
         continue
     }
-    
+
     // Enruta al servicio de IA correspondiente del grupo
     for _, service := range aiServices {
         if wsHub.CheckUserInGroup(service.UserID, msg.GroupID) {
@@ -321,24 +343,25 @@ for msg := range wsHub.AIChannel() {
 ```
 
 #### Paso 4: Worker de IA procesa
+
 ```go
 func (s *AIService) worker(ctx context.Context, id int) {
     for msg := range s.jobs {
         // 1. Obtiene historial del grupo
         allGroupMessages := s.MensajeRepo.GetAllByGrupoClave(msg.GroupID)
-        
+
         // 2. Construye prompt con contexto
         llmMessages := s.buildPromptFromHistory(allGroupMessages)
-        
+
         // 3. Llama al LLM
         aiResponse := llm.PostCompletion(llmMessages, s.LLMBaseURL, ...)
-        
+
         // 4. Parsea respuesta
         aiMsg := s.ParseAIResponse(aiResponse, msg.GroupID, s.UserID)
-        
+
         // 5. Guarda en BD
         gormMsg := s.saveAIToDB(aiMsg)
-        
+
         // 6. Difunde respuesta
         s.Hub.Broadcast(*aiMsg)
     }
@@ -346,6 +369,7 @@ func (s *AIService) worker(ctx context.Context, id int) {
 ```
 
 #### Paso 5: Hub distribuye respuesta de IA
+
 ```
 Hub.Broadcast() → WebSocket → Todos los usuarios del grupo
 ```
@@ -353,23 +377,25 @@ Hub.Broadcast() → WebSocket → Todos los usuarios del grupo
 ### 4. **Formato de Comunicación con LLM**
 
 #### Request al LLM
+
 ```json
 {
   "messages": [
-    {"role": "system", "content": "Eres asistente en español."},
-    {"role": "user", "content": "Hola, ¿cómo estás?"},
-    {"role": "assistant", "content": "¡Hola! Estoy bien, gracias."},
-    {"role": "user", "content": "¿Puedes ayudarme?"}
+    { "role": "system", "content": "Eres asistente en español." },
+    { "role": "user", "content": "Hola, ¿cómo estás?" },
+    { "role": "assistant", "content": "¡Hola! Estoy bien, gracias." },
+    { "role": "user", "content": "¿Puedes ayudarme?" }
   ],
   "model": "gpt-oss"
 }
 ```
 
 #### Response del LLM
+
 ```json
 {
   "content": "Por supuesto, ¿en qué necesitas ayuda?",
-  "answer_id": "123"  // Opcional: ID del mensaje respondido
+  "answer_id": "123" // Opcional: ID del mensaje respondido
 }
 ```
 
@@ -378,15 +404,17 @@ Hub.Broadcast() → WebSocket → Todos los usuarios del grupo
 Aunque el código no implementa explícitamente colores, el sistema permite diferenciar IAs mediante:
 
 #### Por ID de Usuario (`UserID`)
+
 - IA 1: `UserID = "1"` → Modelo `gpt-oss`
 - IA 2: `UserID = "2"` → Modelo `deepseek-r1`
 
 #### En el Frontend (implementación sugerida)
+
 ```javascript
 // Asignar colores según UserID
 const iaColors = {
-  "1": "#FF6B6B",  // Rojo para IA 1 (gpt-oss)
-  "2": "#4ECDC4",  // Verde azulado para IA 2 (deepseek-r1)
+  1: "#FF6B6B", // Rojo para IA 1 (gpt-oss)
+  2: "#4ECDC4", // Verde azulado para IA 2 (deepseek-r1)
   // Usuarios normales: color por defecto
 };
 
@@ -397,6 +425,7 @@ function renderMessage(message) {
 ```
 
 #### Identificación en Base de Datos
+
 ```sql
 -- Las IAs son usuarios normales con IDs específicos
 SELECT * FROM usuarios WHERE id IN (1, 2);
@@ -416,6 +445,7 @@ SELECT * FROM usuarios WHERE id IN (1, 2);
 ## Rutas API
 
 ### Públicas (`/api/public`)
+
 - `POST /usuario` - Registro de usuario
 - `POST /auth/login` - Inicio de sesión
 - `GET /ws/chat` - Conexión WebSocket
@@ -423,15 +453,18 @@ SELECT * FROM usuarios WHERE id IN (1, 2);
 ### Protegidas (`/api`) - Requieren JWT
 
 #### Autenticación
+
 - `GET /auth/verify` - Verificar token
 
 #### Usuarios
+
 - `GET /usuario/:id` - Obtener usuario
 - `GET /usuario` - Listar usuarios
 - `PUT /usuario/:id` - Actualizar usuario
 - `DELETE /usuario/:id` - Eliminar usuario
 
 #### Grupos
+
 - `POST /grupo` - Crear grupo
 - `GET /grupo/:id` - Obtener grupo
 - `GET /grupo` - Listar grupos
@@ -439,11 +472,13 @@ SELECT * FROM usuarios WHERE id IN (1, 2);
 - `DELETE /grupo/:id` - Eliminar grupo
 
 #### Mensajes
+
 - `POST /mensaje` - Enviar mensaje
 - `GET /mensaje/:id` - Obtener mensaje
 - `GET /mensaje/grupo/:groupId` - Mensajes del grupo
 
 #### Grupo-Usuario
+
 - `POST /grupo-usuario` - Agregar usuario a grupo
 - `DELETE /grupo-usuario` - Remover usuario de grupo
 
@@ -452,6 +487,7 @@ SELECT * FROM usuarios WHERE id IN (1, 2);
 ## Ejecución del Proyecto
 
 ### Requisitos Previos
+
 1. **Go 1.24.4+**
 2. **PostgreSQL 12+** corriendo en puerto 5432
 3. **Ollama u otro servidor LLM** en puertos 11434 y 11435
@@ -482,6 +518,7 @@ go run main.go
 ```
 
 ### Logs de Inicio Exitoso
+
 ```
 ¡Hola, mundo desde Go!
 Hello, World!
@@ -500,7 +537,8 @@ Server is running on port 3100
 
 Para agregar un nuevo modelo de IA:
 
-### 1. Actualizar configuración (`internal/app/ia/iaConfig.go`)
+### 1. Actualizar configuración (`internal/ia/iaConfig.go`)
+
 ```go
 var AiConfigurations = []IAConfig{
     // IAs existentes...
@@ -514,18 +552,21 @@ var AiConfigurations = []IAConfig{
 ```
 
 ### 2. Crear usuario en base de datos
+
 ```sql
 INSERT INTO usuarios (id, nombre, apodo, email, password, fecha)
 VALUES (3, 'IA Llama3', 'Llama', 'ia3@chatvist.com', 'hash_bcrypt', NOW());
 ```
 
 ### 3. Agregar IA a grupos deseados
+
 ```sql
 INSERT INTO grupos_usuarios (id_grupo, id_usuario)
 VALUES (1, 3), (2, 3);
 ```
 
 ### 4. Reiniciar servidor
+
 ```bash
 go run main.go
 ```
@@ -535,19 +576,23 @@ go run main.go
 ## Troubleshooting
 
 ### IA no responde
+
 - Verificar que el servidor LLM esté corriendo en el puerto correcto
 - Revisar logs: `Worker X procesando mensaje`
 - Confirmar que la IA está agregada al grupo
 
 ### Error de conexión a base de datos
+
 - Verificar credenciales en `.env`
 - Confirmar que PostgreSQL está corriendo: `pg_isready`
 
 ### WebSocket se desconecta
+
 - Verificar configuración CORS
 - Revisar que el token JWT sea válido
 
 ### LLM responde con error
+
 - Confirmar formato de respuesta JSON: `{"content": "..."}`
 - Verificar logs de Ollama/servidor LLM
 
@@ -556,15 +601,18 @@ go run main.go
 ## Arquitectura de Seguridad
 
 ### Autenticación
+
 - **Passwords**: Hash bcrypt con salt
 - **Tokens**: JWT con expiración configurable
 - **Middleware**: Validación de tokens en rutas protegidas
 
 ### WebSocket
+
 - Autenticación por token en query params
 - Validación de pertenencia a grupo antes de difundir mensajes
 
 ### Base de Datos
+
 - Prepared statements (GORM protege contra SQL injection)
 - Validación de entradas en capa de servicio
 
@@ -573,12 +621,14 @@ go run main.go
 ## Monitoreo y Logs
 
 El sistema registra:
+
 - Conexiones/desconexiones de usuarios
 - Mensajes procesados por IAs
 - Errores de LLM
 - Estados de workers
 
 Ejemplo de logs:
+
 ```
 Hub: Usuario 123 registrado.
 Worker 2 procesando mensaje {SenderID:123 GroupID:abc Content:Hola}
@@ -605,5 +655,5 @@ Hub: Usuario 123 desconectado.
 
 Para dudas o contribuciones al proyecto, consultar con el equipo de desarrollo.
 
-**Versión de documentación**: 1.0  
-**Fecha**: Noviembre 2025
+**Versión de documentación**: 2.0  
+**Fecha**: Marzo 2026
