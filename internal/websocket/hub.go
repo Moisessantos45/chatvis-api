@@ -31,12 +31,14 @@ type RegisterClient struct {
 
 // Message representa un mensaje con el contenido y el grupo de destino
 type Message struct {
-	Id       string `json:"Id"`
-	SenderID string `json:"SenderID"`
-	GroupID  string `json:"GroupID"`
-	Content  string `json:"Content"`
-	Fecha    string `json:"Fecha"`
-	AnswerId string `json:"AnswerId"`
+	Id          string `json:"Id"`
+	SenderID    string `json:"SenderID"`
+	SenderName  string `json:"SenderName,omitempty"`
+	SenderApodo string `json:"SenderApodo,omitempty"`
+	GroupID     string `json:"GroupID"`
+	Content     string `json:"Content"`
+	Fecha       string `json:"Fecha"`
+	AnswerId    string `json:"AnswerId"`
 }
 
 func NewHub() *Hub {

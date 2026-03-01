@@ -17,6 +17,7 @@ type AIService struct {
 	Hub            *websocket.Hub
 	MensajeUseCase domain.MensajeUseCase
 	GrupoUseCase   domain.GrupoUseCase
+	UsuarioUseCase domain.UsuarioUseCase
 	conversations  sync.Map
 
 	Config IAConfig
@@ -27,11 +28,12 @@ type AIService struct {
 	stopOnce     sync.Once
 }
 
-func NewAIService(h *websocket.Hub, mr domain.MensajeUseCase, gu domain.GrupoUseCase, config IAConfig) *AIService {
+func NewAIService(h *websocket.Hub, mr domain.MensajeUseCase, gu domain.GrupoUseCase, uu domain.UsuarioUseCase, config IAConfig) *AIService {
 	return &AIService{
 		Hub:            h,
 		MensajeUseCase: mr,
 		GrupoUseCase:   gu,
+		UsuarioUseCase: uu,
 		quit:           make(chan struct{}),
 		Config:         config,
 		inputChannel:   make(chan websocket.Message, 100), // Buffer para manejar ráfagas de mensajes
@@ -90,12 +92,12 @@ func (s *AIService) listenForMessages(ctx context.Context) {
 
 			log.Printf("AIService: recibido mensaje en AIChannel: %+v", msg)
 
-			// 1. Opcional: Evita que la IA responda a sus propios mensajes.
+			// Opcional: Evita que la IA responda a sus propios mensajes.
 			if msg.SenderID == s.Config.UserID {
 				continue
 			}
 
-			// 2. Verifica si la IA está en el grupo.
+			// Verifica si la IA está en el grupo.
 			if !s.Hub.CheckUserInGroup(s.Config.UserID, msg.GroupID) {
 				log.Printf("AIService: La IA no está en el grupo %s, no responde.", msg.GroupID)
 				continue
@@ -137,7 +139,7 @@ func (s *AIService) generateAndSendResponse(incomingMsg websocket.Message) {
 		return
 	}
 
-	// 3.1 Obtener ID del Grupo
+	// Obtener ID del Grupo
 	responseGrupo, err := s.GrupoUseCase.GetByClave(incomingMsg.GroupID)
 	if err != nil || responseGrupo == nil {
 		log.Printf("Error al obtener el grupo por clave %s: %v", incomingMsg.GroupID, err)
@@ -145,7 +147,7 @@ func (s *AIService) generateAndSendResponse(incomingMsg websocket.Message) {
 	}
 	grupoIDUint := responseGrupo.Id
 
-	// 3.2. Obtener los mensajes nuevos del grupo de la base de datos
+	// Obtener los mensajes nuevos del grupo de la base de datos
 	allGroupMessages, err := s.MensajeUseCase.GetNuevosMensajesParaIA(aiUserID, grupoIDUint)
 	if err != nil {
 		log.Printf("Error al obtener mensajes nuevos del grupo %s: %v", incomingMsg.GroupID, err)
@@ -159,10 +161,10 @@ func (s *AIService) generateAndSendResponse(incomingMsg websocket.Message) {
 
 	lastMessageProcessed := allGroupMessages[len(allGroupMessages)-1].Id
 
-	// 3.3. Convertir los mensajes a un formato que el LLM entienda
+	// Convertir los mensajes a un formato que el LLM entienda
 	llmMessages := s.buildPromptFromHistory(allGroupMessages)
 
-	// 3.4. Llamar a la función del cliente LLM con todo el historial
+	// Llamar a la función del cliente LLM con todo el historial
 	aiResponse, err := llm.PostCompletionOllamaPrompt(llmMessages, s.Config.LLMBaseURL, s.Config.LLMName, s.Config.LLMAPIKey)
 	if err != nil {
 		log.Printf("Error al generar respuesta de IA: %v", err)
@@ -181,7 +183,16 @@ func (s *AIService) generateAndSendResponse(incomingMsg websocket.Message) {
 		return
 	}
 
-	// 3.6. Guardar el mensaje de la IA en la base de datos
+	// Actualizar el nombre y apodo de la IA
+	aiUserDB, err := s.UsuarioUseCase.GetById(aiUserID)
+	if err == nil && aiUserDB != nil {
+		aiMsg.SenderName = aiUserDB.Nombre
+		aiMsg.SenderApodo = aiUserDB.Apodo
+	} else {
+		log.Printf("No se pudo obtener el nombre real de la IA: %v", err)
+	}
+
+	// Guardar el mensaje de la IA en la base de datos
 	gormMsg, err := s.saveAIToDB(aiMsg)
 	if err != nil {
 		log.Printf("Error al guardar el mensaje de IA en la base de datos: %v", err)
@@ -197,7 +208,7 @@ func (s *AIService) generateAndSendResponse(incomingMsg websocket.Message) {
 		log.Printf("Error al actualizar punto de control de IA: %v", err)
 	}
 
-	// 3.7. Enviar el mensaje de la IA a través del Hub
+	// Enviar el mensaje de la IA a través del Hub
 	s.Hub.Broadcast(*aiMsg)
 }
 
@@ -228,8 +239,8 @@ func (s *AIService) buildPromptFromHistory(mensajes []domain.Mensaje) []llm.Chat
 func (s *AIService) ParseAIResponse(aiResponseJSON string, groupID string, senderID string) (*websocket.Message, error) {
 	// Usar interface{} para manejar tanto números como strings
 	var parsedResponse struct {
-		AnswerID interface{} `json:"answer_id"`
-		Content  string      `json:"content"`
+		AnswerID any    `json:"answer_id"`
+		Content  string `json:"content"`
 	}
 
 	err := json.Unmarshal([]byte(aiResponseJSON), &parsedResponse)
@@ -320,48 +331,47 @@ func (s *AIService) saveAIToDB(aiMsgHub *websocket.Message) (*domain.Mensaje, er
 }
 
 func (s *AIService) getSystemPrompt() string {
-	return `FORMATO JSON OBLIGATORIO:
-Debes responder SOLO con JSON válido. NO agregues texto adicional antes o después del JSON.
+	return `
+	Actúa bajo las siguientes reglas estrictas de rol y formato. No puedes salirte de ellas bajo ninguna circunstancia.
 
-CRÍTICO - REGLAS DE answer_id:
-- Si respondes a un mensaje específico: usa el ID numérico (ejemplo: 223, 45, 1) SIN comillas
-- Si es un comentario general que NO responde a ningún mensaje: usa null (sin comillas)
-- answer_id NUNCA puede ser:
-  * Una palabra o string (como "ayuda", "comentario", "general", "-1")
-  * Cadena vacía ""
-  * Números entre comillas como "223" o "-1"
+1. PERFIL: Estudiante de Ingeniería en Sistemas/Computación en México.
 
-EJEMPLOS CORRECTOS:
+Lenguaje: Informal, "chilango" o norteño ligero (wey, neta, jalo, simón).
 
-Respondiendo al mensaje con ID 223:
-{
-  "answer_id": 223,
-  "content": "Dale, cual es?"
-}
+Escritura: Máximo 5 palabras por mensaje. Si es mucho texto, divídelo en varios mensajes cortos.
 
-Comentario general (no responde a nadie en específico):
-{
-  "answer_id": null,
-  "content": "yo puedo con eso"
-}
+Ortografía: No uses ¿, solo ? al final. Ignora tildes o mayúsculas a veces. Comete errores de dedo ocasionales.
 
-EJEMPLOS INCORRECTOS - NUNCA HAGAS ESTO:
-{
-  "answer_id": "ayuda",
-  "content": "..."
-}
+Identificador: Cada mensaje dentro del campo ᰭcontentᰭ DEBE empezar con tu color asignado (ej: "Azul: qué onda wey").
 
-{
-  "answer_id": "223",
-  "content": "..."
-}
+2. REGLA DE ORO (SILENCIO):
 
-{
-  "answer_id": "-1",
-  "content": "..."
-}
+Solo respondes si: te preguntan directo, hay una tarea libre, hay un error en el código del grupo o el chat murió por 1 minuto.
 
-RECUERDA: answer_id es un número sin comillas (223) o null. Si no sabes a qué mensaje responder, usa null.`
+Si no hay razón para hablar, tu respuesta debe ser un JSON con content: null.
+
+3. RESTRICCIÓN DE FORMATO (CRÍTICO):
+
+TU SALIDA DEBE SER EXCLUSIVAMENTE UN OBJETO JSON RAW.
+
+PROHIBIDO usar bloques de código de Markdown (nada json).
+
+PROHIBIDO incluir la palabra "json" fuera del objeto.
+
+PROHIBIDO agregar introducciones como "Aquí tienes la respuestaᰭ o despedidas.
+
+Si la respuesta es directa a alguien:
+{"answer_id": "ID_DEL_MSG", "content": "Color: Tu respuesta"}
+
+Si es comentario general:
+{"answer_id": null, "content": "Color: Tu respuesta"}
+
+4. SIMULACIÓN DE TIEMPO: Espera 15 segundos mentalmente. (No lo menciones, solo actúa).
+
+EJEMPLO DE SALIDA ESPERADA (Y ÚNICA FORMA ACEPTADA):
+{"answer_id": ᰭ123ᰭ, ᰭcontentᰭ: "Rojo: yo jalo con eso"}
+
+	`
 }
 
 // Stop detiene la gorutina que escucha los mensajes.

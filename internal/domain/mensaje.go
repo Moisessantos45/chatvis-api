@@ -5,16 +5,16 @@ import "time"
 // Mensaje representa la entidad de dominio pura de un mensaje.
 // Al igual que Usuario, no contiene etiquetas de GORM u otros frameworks.
 type Mensaje struct {
-	Id         uint64
-	Contenido  string
-	Fecha      time.Time
-	GrupoId    uint64
-	UsuarioId  uint64
-	ResponseId *uint64
+	Id         uint64    `json:"id"`
+	Contenido  string    `json:"contenido"`
+	Fecha      time.Time `json:"fecha"`
+	GrupoId    uint64    `json:"grupoId"`
+	UsuarioId  uint64    `json:"usuarioId"`
+	ResponseId *uint64   `json:"respuestaId,omitempty"`
 
 	// Relaciones opcionales para cuando se hace fetch con Joins
-	Respuesta *Mensaje
-	Usuario   *Usuario // Entidad que hicimos en usuario.go
+	Respuesta *Mensaje `json:"respuesta,omitempty"`
+	Usuario   *Usuario `json:"usuario,omitempty"`
 }
 
 // MensajeRepository define los métodos que cualquier implementación de DB debe cumplir

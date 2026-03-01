@@ -3,6 +3,7 @@ package http
 import (
 	"chatvis-chat/internal/domain"
 	"chatvis-chat/internal/pkg"
+	"log"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -16,7 +17,7 @@ func NewMensajeHandler(group fiber.Router, mu domain.MensajeUseCase) {
 		MUsecase: mu,
 	}
 
-	group.Get("/grupo/:id", handler.GetMensajesByChatID) // Obtener mensajes por ID de grupo
+	group.Get("/group/:id", handler.GetMensajesByChatID) // Obtener mensajes por ID de grupo
 	group.Get("/:id", handler.GetMensajeByID)            // Obtener mensaje por ID
 	group.Post("/", handler.CreateMensaje)               // Crear un nuevo mensaje
 	group.Put("/:id", handler.UpdateMensaje)             // Actualizar un mensaje existente
@@ -38,6 +39,8 @@ func (h *MensajeHandler) GetMensajeByID(c *fiber.Ctx) error {
 
 func (h *MensajeHandler) GetMensajesByChatID(c *fiber.Ctx) error {
 	grupoId, err := pkg.ValidateParamsId(c)
+
+	log.Println("Grupo ID: ", grupoId)
 	if err != nil {
 		return pkg.ResponseJson(c, fiber.StatusBadRequest, "Error al obtener mensajes", "Error parametro", err.Error())
 	}

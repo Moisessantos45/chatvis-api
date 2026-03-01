@@ -4,16 +4,16 @@ import "time"
 
 // Grupo representa la entidad principal para los chats de grupo
 type Grupo struct {
-	Id          uint64
-	Clave       string
-	Nombre      string
-	Fecha       time.Time
-	CreatedById uint64
+	Id          uint64    `json:"id"`
+	Clave       string    `json:"clave"`
+	Nombre      string    `json:"nombre"`
+	Fecha       time.Time `json:"fecha"`
+	CreatedById uint64    `json:"createdById"`
 
 	// Relaciones (Opcionales dependiendo del fetch)
-	UsuarioCreatedBy *Usuario
-	Usuarios         []Usuario
-	Mensajes         []Mensaje // Sirve por ejemplo para traer el último mensaje del grupo
+	UsuarioCreatedBy *Usuario  `json:"usuarioCreatedBy,omitempty"`
+	Usuarios         []Usuario `json:"usuarios,omitempty"`
+	Mensajes         []Mensaje `json:"mensajes,omitempty"`
 }
 
 // GrupoRepository define los métodos requeridos para acceso a datos del grupo

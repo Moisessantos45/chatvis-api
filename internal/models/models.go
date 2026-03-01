@@ -28,6 +28,8 @@ type Usuarios struct {
 	Fecha    time.Time `json:"fecha" gorm:"type:date;not null"`
 	Token    string    `json:"token" gorm:"type:text"`
 	IsLlm    bool      `json:"isLlm" gorm:"type:boolean;not null;default:false"`
+	IsAdmin  bool      `json:"isAdmin" gorm:"type:boolean;not null;default:false"`
+	IsActive bool      `json:"isActive" gorm:"type:boolean;not null;default:true"`
 
 	GrupoCreatedBy []Grupos   `json:"gruposCreatedBy" gorm:"foreignKey:CreatedById;references:Id"`
 	Grupos         []Grupos   `json:"grupos" gorm:"many2many:grupos_usuarios;foreignKey:Id;joinForeignKey:IdUsuario;References:Id;JoinReferences:IdGrupo"`

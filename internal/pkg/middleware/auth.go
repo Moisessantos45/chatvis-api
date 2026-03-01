@@ -86,8 +86,21 @@ func JWTAuthMiddleware() fiber.Handler {
 
 		c.Locals("username", claims.Username)
 
+		c.Locals("isAdmin", claims.IsAdmin)
+
 		return c.Next()
 
 	}
 
+}
+
+// AdminAuthMiddleware is a Fiber middleware to check if the user is an admin
+func AdminAuthMiddleware() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		isAdmin, ok := c.Locals("isAdmin").(bool)
+		if !ok || !isAdmin {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Access denied. Admin privileges required."})
+		}
+		return c.Next()
+	}
 }

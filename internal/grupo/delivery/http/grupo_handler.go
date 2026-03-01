@@ -18,10 +18,18 @@ func NewGrupoHandler(group fiber.Router, gu domain.GrupoUseCase) {
 	}
 
 	group.Get("", handler.GetAllGrupos)
-	group.Get("/clave/:clave", handler.GetGrupoByClave)
-	group.Get("/usuario/:id", handler.GetAllGruposByUsuarioId)
+	group.Get("/key/:key", handler.GetGrupoByClave)
+	group.Get("/user/:id", handler.GetAllGruposByUsuarioId)
 	group.Get("/:id", handler.GetGrupoById)
 	group.Post("", handler.CreateGrupo)
+}
+
+// NewAdminGrupoHandler registra endpoints de grupos para administradores
+func NewAdminGrupoHandler(group fiber.Router, gu domain.GrupoUseCase) {
+	handler := &GrupoHandler{
+		GUsecase: gu,
+	}
+	group.Get("/group", handler.GetAllGrupos)
 }
 
 func (h *GrupoHandler) GetAllGrupos(c *fiber.Ctx) error {
@@ -48,7 +56,7 @@ func (h *GrupoHandler) GetGrupoById(c *fiber.Ctx) error {
 }
 
 func (h *GrupoHandler) GetGrupoByClave(c *fiber.Ctx) error {
-	clave := c.Params("clave")
+	clave := c.Params("key")
 	if len(strings.TrimSpace(clave)) == 0 {
 		return pkg.ResponseJson(c, fiber.StatusBadRequest, "Error al obtener grupo", "Error parametro", "Clave no proporcionada")
 	}
