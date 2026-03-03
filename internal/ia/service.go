@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -161,6 +162,12 @@ func (s *AIService) generateAndSendResponse(incomingMsg websocket.Message) {
 
 	lastMessageProcessed := allGroupMessages[len(allGroupMessages)-1].Id
 
+	// Avanzar el Checkpoint inmediatamente para evitar bloqueos infinitos de parsing
+	err = s.MensajeUseCase.ActualizarPuntoControl(aiUserID, grupoIDUint, lastMessageProcessed)
+	if err != nil {
+		log.Printf("Error al actualizar punto de control anticipado de IA: %v", err)
+	}
+
 	// Convertir los mensajes a un formato que el LLM entienda
 	llmMessages := s.buildPromptFromHistory(allGroupMessages)
 
@@ -202,12 +209,6 @@ func (s *AIService) generateAndSendResponse(incomingMsg websocket.Message) {
 	// Actualizar el ID del mensaje en el objeto aiMsg para que el Hub tenga el ID correcto
 	aiMsg.Id = strconv.FormatUint(gormMsg.Id, 10)
 
-	// Actualizar checkpoint (el ultimo mensaje que leyó la IA)
-	err = s.MensajeUseCase.ActualizarPuntoControl(aiUserID, grupoIDUint, lastMessageProcessed)
-	if err != nil {
-		log.Printf("Error al actualizar punto de control de IA: %v", err)
-	}
-
 	// Enviar el mensaje de la IA a través del Hub
 	s.Hub.Broadcast(*aiMsg)
 }
@@ -237,6 +238,15 @@ func (s *AIService) buildPromptFromHistory(mensajes []domain.Mensaje) []llm.Chat
 }
 
 func (s *AIService) ParseAIResponse(aiResponseJSON string, groupID string, senderID string) (*websocket.Message, error) {
+	// Limpiar formateo Markdown de bloques de código en caso de que la IA responda "```json ... ```"
+	aiResponseJSON = strings.TrimSpace(aiResponseJSON)
+	if strings.HasPrefix(aiResponseJSON, "```") {
+		aiResponseJSON = strings.TrimPrefix(aiResponseJSON, "```json")
+		aiResponseJSON = strings.TrimPrefix(aiResponseJSON, "```")
+		aiResponseJSON = strings.TrimSuffix(aiResponseJSON, "```")
+		aiResponseJSON = strings.TrimSpace(aiResponseJSON)
+	}
+
 	// Usar interface{} para manejar tanto números como strings
 	var parsedResponse struct {
 		AnswerID any    `json:"answer_id"`
@@ -342,7 +352,7 @@ Escritura: Máximo 5 palabras por mensaje. Si es mucho texto, divídelo en vario
 
 Ortografía: No uses ¿, solo ? al final. Ignora tildes o mayúsculas a veces. Comete errores de dedo ocasionales.
 
-Identificador: Cada mensaje dentro del campo ᰭcontentᰭ DEBE empezar con tu color asignado (ej: "Azul: qué onda wey").
+Identificador: Cada mensaje dentro del campo \"content\" DEBE empezar con tu color asignado (ej: "Azul: qué onda wey").
 
 2. REGLA DE ORO (SILENCIO):
 
@@ -358,7 +368,7 @@ PROHIBIDO usar bloques de código de Markdown (nada json).
 
 PROHIBIDO incluir la palabra "json" fuera del objeto.
 
-PROHIBIDO agregar introducciones como "Aquí tienes la respuestaᰭ o despedidas.
+PROHIBIDO agregar introducciones como "Aquí tienes la respuesta" o despedidas.
 
 Si la respuesta es directa a alguien:
 {"answer_id": "ID_DEL_MSG", "content": "Color: Tu respuesta"}
@@ -369,7 +379,7 @@ Si es comentario general:
 4. SIMULACIÓN DE TIEMPO: Espera 15 segundos mentalmente. (No lo menciones, solo actúa).
 
 EJEMPLO DE SALIDA ESPERADA (Y ÚNICA FORMA ACEPTADA):
-{"answer_id": ᰭ123ᰭ, ᰭcontentᰭ: "Rojo: yo jalo con eso"}
+{"answer_id": "123", "content": "Rojo: yo jalo con eso"}
 
 	`
 }

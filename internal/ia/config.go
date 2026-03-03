@@ -1,4 +1,5 @@
 package ia
+
 import "os"
 
 type IAConfig struct {
@@ -10,18 +11,18 @@ type IAConfig struct {
 }
 
 var AiConfigurations = []IAConfig{
-	// {
-	// 	UserID:     "5",
-	// 	LLMBaseURL: "http://localhost:11434/v1",
-	// 	LLMName:    "gpt-oss:120b",
-	// 	LLMAPIKey:  os.Getenv("LLM_API_KEY_1"),
-	// },
+	{
+		UserID:     "5",
+		LLMBaseURL: "http://localhost:11434/v1",
+		LLMName:    "gpt-oss:120b",
+		LLMAPIKey:  os.Getenv("LLM_API_KEY_1"),
+	},
 	{
 		UserID:     "6",
 		LLMBaseURL: "http://localhost:1234/v1/chat/completions",
 		LLMName:    "google/gemma-3-27b",
 		LLMAPIKey:  os.Getenv("LLM_API_KEY_2"),
-		IsPromt:   false,
+		IsPromt:    false,
 	},
 	// {
 	// 	UserID:     "7",
