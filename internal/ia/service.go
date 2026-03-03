@@ -165,7 +165,7 @@ func (s *AIService) generateAndSendResponse(incomingMsg websocket.Message) {
 	llmMessages := s.buildPromptFromHistory(allGroupMessages)
 
 	// Llamar a la función del cliente LLM con todo el historial
-	aiResponse, err := llm.PostCompletionOllamaPrompt(llmMessages, s.Config.LLMBaseURL, s.Config.LLMName, s.Config.LLMAPIKey)
+	aiResponse, err := llm.PostCompletion(llmMessages, s.Config.LLMBaseURL, s.Config.LLMName, s.Config.LLMAPIKey)
 	if err != nil {
 		log.Printf("Error al generar respuesta de IA: %v", err)
 		return

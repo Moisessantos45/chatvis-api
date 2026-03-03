@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 )
@@ -50,16 +49,11 @@ type OllamaCompletionResponse struct {
 	Done      bool   `json:"done"`
 }
 
-func PostCompletionOllamaPrompt(messages []ChatMessage, baseURL string, nameLLM string, apiKey string) (string, error) {
-	if len(messages) == 0 {
-		return "", fmt.Errorf("se requiere al menos un mensaje para el prompt")
-	}
-	log.Println("PostCompletionOllamaPrompt - Mensajes recibidos:", len(messages))
-	prompt := messages[len(messages)-1].Content
 
-	requestBody := OllamaCompletionBody{
+func PostCompletion(messages []ChatMessage, baseURL string, nameLLM string, apiKey string) (string, error) {
+	requestBody := CompletionBody{
 		Model:       nameLLM,
-		Prompt:      prompt,
+		Messages:    messages,
 		Temperature: 0.7,
 		Stream:      false,
 	}
@@ -71,12 +65,10 @@ func PostCompletionOllamaPrompt(messages []ChatMessage, baseURL string, nameLLM 
 
 	client := &http.Client{Timeout: 30 * time.Second}
 
-	// Default endpoint or use BaseURL dynamically based on requirements
-	req, err := http.NewRequest("POST", "https://n8n.glimpse.uaslp.mx/ollama/api/generate", bytes.NewBuffer(jsonBody))
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s", baseURL), bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return "", fmt.Errorf("fallo al crear la solicitud: %w", err)
 	}
-
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", apiKey))
 
@@ -91,12 +83,20 @@ func PostCompletionOllamaPrompt(messages []ChatMessage, baseURL string, nameLLM 
 		return "", fmt.Errorf("fallo al leer la respuesta: %w", err)
 	}
 
-	var ollamaCompletion OllamaCompletionResponse
-	if err := json.Unmarshal(bodyBytes, &ollamaCompletion); err == nil {
-		if ollamaCompletion.Response != "" {
-			return ollamaCompletion.Response, nil
-		}
+	fmt.Println(">>> Respuesta cruda del LLM:\n", string(bodyBytes))
+
+	// 1. Intentar decodificar como OpenAI
+	var completionResponse ChatCompletionResponse
+	if err := json.Unmarshal(bodyBytes, &completionResponse); err == nil && len(completionResponse.Choices) > 0 {
+		return completionResponse.Choices[0].Message.Content, nil
 	}
 
-	return "", fmt.Errorf("no se encontró contenido válido en la respuesta del LLM (Ollama Completion)")
+	// 2. Intentar decodificar como Ollama
+	var ollamaResponse OllamaChatResponse
+	if err := json.Unmarshal(bodyBytes, &ollamaResponse); err == nil && ollamaResponse.Message.Content != "" {
+		return ollamaResponse.Message.Content, nil
+	}
+
+	return "", fmt.Errorf("no se encontró contenido válido en la respuesta del LLM")
 }
+
