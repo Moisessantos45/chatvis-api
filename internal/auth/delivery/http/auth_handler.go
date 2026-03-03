@@ -1,8 +1,8 @@
 package http
 
 import (
-	"chatvis-chat/internal/models"
 	"chatvis-chat/internal/domain"
+	"chatvis-chat/internal/models"
 	"chatvis-chat/internal/pkg"
 	"strings"
 
@@ -30,7 +30,6 @@ func NewAuthProtectedHandler(group fiber.Router, au domain.AuthUseCase) {
 }
 
 func (h *AuthHandler) Login(c *fiber.Ctx) error {
-	// Reutilizamos el struct UsuarioLogin anterior si existe, o definimos uno local:
 	var reqBody models.UsuarioLogin
 
 	if err := c.BodyParser(&reqBody); err != nil {

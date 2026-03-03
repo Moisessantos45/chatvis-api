@@ -56,7 +56,7 @@ func (h *UsuarioHandler) GetUsuarioByID(c *fiber.Ctx) error {
 		return pkg.ResponseJson(c, fiber.StatusInternalServerError, "Error al obtener usuario", "Error interno", err.Error())
 	}
 
-	usuario.Password = "" // No enviar la contraseña en la respuesta
+	usuario.Password = ""
 
 	return pkg.ResponseJson(c, fiber.StatusOK, "Usuario obtenido correctamente", "", usuario)
 }
@@ -73,7 +73,7 @@ func (h *UsuarioHandler) GetUsuarioByEmail(c *fiber.Ctx) error {
 		return pkg.ResponseJson(c, fiber.StatusInternalServerError, "Error al obtener usuario", "Error interno", err.Error())
 	}
 
-	usuario.Password = "" // No enviar la contraseña en la respuesta
+	usuario.Password = ""
 
 	return pkg.ResponseJson(c, fiber.StatusOK, "Usuario obtenido correctamente", "", usuario)
 }
@@ -82,7 +82,6 @@ func (h *UsuarioHandler) GetUsuarioByEmailToken(c *fiber.Ctx) error {
 
 	localEmail := c.Locals("email")
 
-	// This log will show if the value is nil or a string
 	log.Printf("Raw value from c.Locals('email'): %+v", localEmail)
 
 	if localEmail == nil {
@@ -104,7 +103,7 @@ func (h *UsuarioHandler) GetUsuarioByEmailToken(c *fiber.Ctx) error {
 		return pkg.ResponseJson(c, fiber.StatusInternalServerError, "Error al obtener usuario", "Error interno", err.Error())
 	}
 
-	usuario.Password = "" // No enviar la contraseña en la respuesta
+	usuario.Password = ""
 
 	return pkg.ResponseJson(c, fiber.StatusOK, "Usuario obtenido correctamente", "", usuario)
 }
@@ -116,7 +115,6 @@ func (h *UsuarioHandler) CreateUsuario(c *fiber.Ctx) error {
 		return pkg.ResponseJson(c, fiber.StatusBadRequest, "Error al crear usuario", "Error de parseo", err.Error())
 	}
 
-	// En el registro normal no se permite ser admin ni llm
 	usuario.IsAdmin = false
 	usuario.IsLlm = false
 
@@ -127,7 +125,6 @@ func (h *UsuarioHandler) CreateUsuario(c *fiber.Ctx) error {
 
 	usuario.Password = "" // No enviar la contraseña en la respuesta
 
-	// Regresar status 201 Created
 	return pkg.ResponseJson(c, fiber.StatusCreated, "Usuario creado correctamente", "", usuario)
 }
 
@@ -164,7 +161,7 @@ func (h *UsuarioHandler) DeactivateUsuario(c *fiber.Ctx) error {
 	if err := h.UUsecase.UpdateIsActive(id, false); err != nil {
 		return pkg.ResponseJson(c, fiber.StatusInternalServerError, "Error al desactivar", "Error interno", err.Error())
 	}
-	_ = h.UUsecase.ClearToken(id) // Clear sessions
+	_ = h.UUsecase.ClearToken(id)
 	return pkg.ResponseJson(c, fiber.StatusOK, "Usuario desactivado correctamente", "", nil)
 }
 

@@ -10,7 +10,6 @@ import (
 	"time"
 )
 
-// Define las estructuras para el cuerpo de la solicitud y la respuesta
 type ChatMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
@@ -71,7 +70,6 @@ func PostCompletionOllamaPrompt(messages []ChatMessage, baseURL string, nameLLM 
 
 	client := &http.Client{Timeout: 30 * time.Second}
 
-	// Default endpoint or use BaseURL dynamically based on requirements
 	req, err := http.NewRequest("POST", "https://n8n.glimpse.uaslp.mx/ollama/api/generate", bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return "", fmt.Errorf("fallo al crear la solicitud: %w", err)

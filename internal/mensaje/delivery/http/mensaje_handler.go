@@ -17,10 +17,10 @@ func NewMensajeHandler(group fiber.Router, mu domain.MensajeUseCase) {
 		MUsecase: mu,
 	}
 
-	group.Get("/group/:id", handler.GetMensajesByChatID) // Obtener mensajes por ID de grupo
-	group.Get("/:id", handler.GetMensajeByID)            // Obtener mensaje por ID
-	group.Post("/", handler.CreateMensaje)               // Crear un nuevo mensaje
-	group.Put("/:id", handler.UpdateMensaje)             // Actualizar un mensaje existente
+	group.Get("/group/:id", handler.GetMensajesByChatID)
+	group.Get("/:id", handler.GetMensajeByID)
+	group.Post("/", handler.CreateMensaje)
+	group.Put("/:id", handler.UpdateMensaje)
 }
 
 func (h *MensajeHandler) GetMensajeByID(c *fiber.Ctx) error {

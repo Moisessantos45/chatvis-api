@@ -47,7 +47,6 @@ func (s *AIService) InputChannel() chan websocket.Message {
 
 // Start listens for new messages from the Hub and decides whether to respond.
 func (s *AIService) Start(ctx context.Context, workerCount int) {
-	// Primero suscribir a los grupos
 	if err := s.SuscribeToGroup(); err != nil {
 		log.Printf("Error al suscribir IA a grupos: %v", err)
 	} else {
@@ -92,18 +91,15 @@ func (s *AIService) listenForMessages(ctx context.Context) {
 
 			log.Printf("AIService: recibido mensaje en AIChannel: %+v", msg)
 
-			// Opcional: Evita que la IA responda a sus propios mensajes.
 			if msg.SenderID == s.Config.UserID {
 				continue
 			}
 
-			// Verifica si la IA está en el grupo.
 			if !s.Hub.CheckUserInGroup(s.Config.UserID, msg.GroupID) {
 				log.Printf("AIService: La IA no está en el grupo %s, no responde.", msg.GroupID)
 				continue
 			}
 
-			// Mandar al pool de workers
 			select {
 			case <-ctx.Done():
 				return
@@ -147,7 +143,6 @@ func (s *AIService) generateAndSendResponse(incomingMsg websocket.Message) {
 	}
 	grupoIDUint := responseGrupo.Id
 
-	// Obtener los mensajes nuevos del grupo de la base de datos
 	allGroupMessages, err := s.MensajeUseCase.GetNuevosMensajesParaIA(aiUserID, grupoIDUint)
 	if err != nil {
 		log.Printf("Error al obtener mensajes nuevos del grupo %s: %v", incomingMsg.GroupID, err)
@@ -161,10 +156,8 @@ func (s *AIService) generateAndSendResponse(incomingMsg websocket.Message) {
 
 	lastMessageProcessed := allGroupMessages[len(allGroupMessages)-1].Id
 
-	// Convertir los mensajes a un formato que el LLM entienda
 	llmMessages := s.buildPromptFromHistory(allGroupMessages)
 
-	// Llamar a la función del cliente LLM con todo el historial
 	aiResponse, err := llm.PostCompletionOllamaPrompt(llmMessages, s.Config.LLMBaseURL, s.Config.LLMName, s.Config.LLMAPIKey)
 	if err != nil {
 		log.Printf("Error al generar respuesta de IA: %v", err)
@@ -176,14 +169,12 @@ func (s *AIService) generateAndSendResponse(incomingMsg websocket.Message) {
 		return
 	}
 
-	// 3.5. Crear y enviar el mensaje de la IA al Hub tenemos que usar la funcion ParseAIResponse
 	aiMsg, err := s.ParseAIResponse(aiResponse, incomingMsg.GroupID, s.Config.UserID)
 	if err != nil {
 		log.Printf("Error al parsear la respuesta de IA: %v", err)
 		return
 	}
 
-	// Actualizar el nombre y apodo de la IA
 	aiUserDB, err := s.UsuarioUseCase.GetById(aiUserID)
 	if err == nil && aiUserDB != nil {
 		aiMsg.SenderName = aiUserDB.Nombre
@@ -192,23 +183,19 @@ func (s *AIService) generateAndSendResponse(incomingMsg websocket.Message) {
 		log.Printf("No se pudo obtener el nombre real de la IA: %v", err)
 	}
 
-	// Guardar el mensaje de la IA en la base de datos
 	gormMsg, err := s.saveAIToDB(aiMsg)
 	if err != nil {
 		log.Printf("Error al guardar el mensaje de IA en la base de datos: %v", err)
 		return
 	}
 
-	// Actualizar el ID del mensaje en el objeto aiMsg para que el Hub tenga el ID correcto
 	aiMsg.Id = strconv.FormatUint(gormMsg.Id, 10)
 
-	// Actualizar checkpoint (el ultimo mensaje que leyó la IA)
 	err = s.MensajeUseCase.ActualizarPuntoControl(aiUserID, grupoIDUint, lastMessageProcessed)
 	if err != nil {
 		log.Printf("Error al actualizar punto de control de IA: %v", err)
 	}
 
-	// Enviar el mensaje de la IA a través del Hub
 	s.Hub.Broadcast(*aiMsg)
 }
 
@@ -221,7 +208,6 @@ func (s *AIService) buildPromptFromHistory(mensajes []domain.Mensaje) []llm.Chat
 			Content: s.getSystemPrompt()})
 		aiUserIDUint, _ = strconv.ParseUint(s.Config.UserID, 10, 64)
 	}
-	// Itera sobre los mensajes de la base de datos para construir el historial.
 	for _, msg := range mensajes {
 		role := "user"
 		if msg.UsuarioId == aiUserIDUint && s.Config.IsPromt {
@@ -237,7 +223,6 @@ func (s *AIService) buildPromptFromHistory(mensajes []domain.Mensaje) []llm.Chat
 }
 
 func (s *AIService) ParseAIResponse(aiResponseJSON string, groupID string, senderID string) (*websocket.Message, error) {
-	// Usar interface{} para manejar tanto números como strings
 	var parsedResponse struct {
 		AnswerID any    `json:"answer_id"`
 		Content  string `json:"content"`
@@ -304,7 +289,6 @@ func (s *AIService) saveAIToDB(aiMsgHub *websocket.Message) (*domain.Mensaje, er
 	}
 
 	var responseID *uint64
-	// Manejar "-1" como caso especial (comentario general)
 	if aiMsgHub.AnswerId != "" && aiMsgHub.AnswerId != "-1" {
 		parsedResponseID, err := strconv.ParseUint(aiMsgHub.AnswerId, 10, 64)
 		if err != nil {

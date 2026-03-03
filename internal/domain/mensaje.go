@@ -3,7 +3,6 @@ package domain
 import "time"
 
 // Mensaje representa la entidad de dominio pura de un mensaje.
-// Al igual que Usuario, no contiene etiquetas de GORM u otros frameworks.
 type Mensaje struct {
 	Id         uint64    `json:"id"`
 	Contenido  string    `json:"contenido"`
@@ -12,7 +11,6 @@ type Mensaje struct {
 	UsuarioId  uint64    `json:"usuarioId"`
 	ResponseId *uint64   `json:"respuestaId,omitempty"`
 
-	// Relaciones opcionales para cuando se hace fetch con Joins
 	Respuesta *Mensaje `json:"respuesta,omitempty"`
 	Usuario   *Usuario `json:"usuario,omitempty"`
 }

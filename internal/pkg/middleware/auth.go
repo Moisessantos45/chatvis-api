@@ -12,8 +12,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// JWTAuthMiddleware is a Fiber middleware to validate JWT tokens.
-
 func JWTAuthMiddleware() fiber.Handler {
 
 	var JwtSecret = []byte(os.Getenv("SECRET_KEY_JWT"))
@@ -40,8 +38,6 @@ func JWTAuthMiddleware() fiber.Handler {
 
 		claims := &pkg.MyClaims{}
 
-		// Parse and validate the token with the custom claims struct
-
 		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
 
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -61,8 +57,6 @@ func JWTAuthMiddleware() fiber.Handler {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid or expired token"})
 
 		}
-
-		// Check if the token is valid
 
 		if !token.Valid {
 

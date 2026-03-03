@@ -34,7 +34,6 @@ func (c *WebSocketController) WebSocketUpgrade(ctx *fiber.Ctx) error {
 
 // WebSocketChat handles WebSocket connections, authenticates, and subscribes users to groups.
 func (c *WebSocketController) WebSocketChat(conn *websocket.Conn) {
-	// 1. Read the authentication token from the first message
 	var authMsg struct {
 		Token string `json:"token"`
 	}
@@ -45,7 +44,6 @@ func (c *WebSocketController) WebSocketChat(conn *websocket.Conn) {
 		return
 	}
 
-	// 2. Validate the token and get the user ID
 	token, err := jwt.Parse(authMsg.Token, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
@@ -62,7 +60,6 @@ func (c *WebSocketController) WebSocketChat(conn *websocket.Conn) {
 
 	claims := token.Claims.(jwt.MapClaims)
 
-	// Get the user ID from claims. The claim key is "id" (lowercase as decoded by standard).
 	userIDInterface, ok := claims["id"]
 	if !ok {
 		log.Println("ID de usuario no válido en el token.")
@@ -78,7 +75,6 @@ func (c *WebSocketController) WebSocketChat(conn *websocket.Conn) {
 		return
 	}
 
-	// Convert the string ID to uint64 for the service call
 	idUser, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil {
 		log.Println("Error al convertir el ID de usuario:", err)
@@ -87,10 +83,8 @@ func (c *WebSocketController) WebSocketChat(conn *websocket.Conn) {
 		return
 	}
 
-	// 3. Confirm authentication success and continue
 	conn.WriteMessage(websocket.TextMessage, []byte("authentication_successful"))
 
-	// 4. Subscribe the user to their groups
 	groupClaves, err := c.GrupoUseCase.GetAllGruposByUsuarioIdToClaves(idUser)
 	if err != nil {
 		log.Printf("Error al obtener grupos para el usuario %s: %v", userIDStr, err)
@@ -98,7 +92,6 @@ func (c *WebSocketController) WebSocketChat(conn *websocket.Conn) {
 		return
 	}
 
-	// Register user with the string ID
 	c.Hub.Register(userIDStr, conn)
 	c.Hub.SubscribeUserToGroups(userIDStr, groupClaves)
 
@@ -107,7 +100,6 @@ func (c *WebSocketController) WebSocketChat(conn *websocket.Conn) {
 		conn.Close()
 	}()
 
-	// 5. Handle subsequent chat messages
 	for {
 		var msg Message
 		if err := conn.ReadJSON(&msg); err != nil {
