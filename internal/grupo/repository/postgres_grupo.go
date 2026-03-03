@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"chatvis-chat/internal/models"
 	"chatvis-chat/internal/domain"
+	"chatvis-chat/internal/models"
 	"errors"
 	"fmt"
 
@@ -30,7 +30,6 @@ func mapGormToDomain(gormGrupo *models.Grupos) *domain.Grupo {
 		CreatedById: gormGrupo.CreatedById,
 	}
 
-	// Mapear el último mensaje opcionalmente (basado en la lógica anterior)
 	if len(gormGrupo.Mensajes) > 0 {
 		m := gormGrupo.Mensajes[0]
 		domainMensaje := domain.Mensaje{
@@ -41,7 +40,6 @@ func mapGormToDomain(gormGrupo *models.Grupos) *domain.Grupo {
 			UsuarioId:  m.UsuarioId,
 			ResponseId: m.ResponseId,
 		}
-		// Si hubiese respuesta adjunta, se mapea aquí (dependiendo de preloads)
 		if m.Respuesta != nil {
 			domainMensaje.Respuesta = &domain.Mensaje{
 				Id:        m.Respuesta.Id,
@@ -194,7 +192,6 @@ func (r *postgresGrupoRepository) Create(grupo *domain.Grupo) error {
 
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 
-		// Controladores anteriores revisaban si existía
 		existingGrupo, code, err := r.GetByName(grupo.Nombre)
 		if err != nil && code != 404 {
 			return fmt.Errorf("error checking existing group: %w", err)
@@ -209,10 +206,8 @@ func (r *postgresGrupoRepository) Create(grupo *domain.Grupo) error {
 			return err
 		}
 
-		// Inject back the generated ID
 		grupo.Id = gormGrupo.Id
 
-		// Create the relationship with the user directly mapping to GroupsUsers table
 		newRel := models.GruposUsuarios{
 			IdGrupo:   gormGrupo.Id,
 			IdUsuario: gormGrupo.CreatedById,

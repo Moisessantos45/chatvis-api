@@ -12,12 +12,10 @@ type postgresUsuarioRepository struct {
 	db *gorm.DB
 }
 
-// NewPostgresUsuarioRepository crea una nueva instancia del repositorio de usuario usando GORM
 func NewPostgresUsuarioRepository(db *gorm.DB) domain.UsuarioRepository {
 	return &postgresUsuarioRepository{db: db}
 }
 
-// mapGormToDomain convierte un modelo de GORM (models.Usuarios) a la entidad de dominio pura (domain.Usuario)
 func mapGormToDomain(gormUser *models.Usuarios) *domain.Usuario {
 	if gormUser == nil {
 		return nil
@@ -36,7 +34,6 @@ func mapGormToDomain(gormUser *models.Usuarios) *domain.Usuario {
 	}
 }
 
-// mapDomainToGorm convierte la entidad de dominio (domain.Usuario) al modelo de GORM (models.Usuarios)
 func mapDomainToGorm(domainUser *domain.Usuario) *models.Usuarios {
 	if domainUser == nil {
 		return nil
@@ -79,7 +76,6 @@ func (r *postgresUsuarioRepository) Create(usuario *domain.Usuario) error {
 	if err := r.db.Create(gormUser).Error; err != nil {
 		return err
 	}
-	// Asignamos el ID generado por GORM de vuelta al objeto de dominio
 	usuario.Id = gormUser.Id
 	return nil
 }

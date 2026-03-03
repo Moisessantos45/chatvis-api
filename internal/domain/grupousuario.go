@@ -9,7 +9,7 @@ type GrupoUsuario struct {
 // GrupoUsuarioRepository permite operar sobre la relación de grupos y usuarios
 type GrupoUsuarioRepository interface {
 	GetByGrupoId(grupoId uint64) ([]GrupoUsuario, error)
-	GetByUsuarioId(usuarioId uint64) (*GrupoUsuario, error) // Nombrado de forma más lógica que "GetByGrupoUsuarioId" antiguo
+	GetByUsuarioId(usuarioId uint64) (*GrupoUsuario, error)
 	Create(grupoUsuario *GrupoUsuario) error
 }
 

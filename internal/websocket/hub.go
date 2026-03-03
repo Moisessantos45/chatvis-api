@@ -13,14 +13,13 @@ type Hub struct {
 	clients    map[string]*websocket.Conn // ID de usuario -> Conexión
 	userGroups map[string]map[string]bool // ID de usuario -> {ID de grupo: true}
 
-	// Canales de control
 	register   chan RegisterClient
 	unregister chan string
 	broadcast  chan Message
 	aiChannel  chan Message
 	done       chan struct{}
 
-	mu sync.Mutex // Mutex para proteger el estado concurrente
+	mu sync.Mutex
 }
 
 // RegisterClient encapsula la información para el registro
@@ -83,7 +82,6 @@ func (h *Hub) Run() {
 			}
 
 			for userID, conn := range h.clients {
-				// Verificamos si este usuario pertenece al grupo del mensaje
 				if h.userGroups[userID] != nil && h.userGroups[userID][msg.GroupID] {
 					if err := conn.WriteMessage(websocket.TextMessage, jsonMsg); err != nil {
 						log.Printf("Hub: Error al enviar a %s: %v", userID, err)

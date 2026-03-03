@@ -12,7 +12,6 @@ type usuarioUseCase struct {
 	repo domain.UsuarioRepository
 }
 
-// NewUsuarioUseCase crea una nueva instancia del servicio de usuario inyectando su dependencia
 func NewUsuarioUseCase(r domain.UsuarioRepository) domain.UsuarioUseCase {
 	return &usuarioUseCase{repo: r}
 }
@@ -47,40 +46,32 @@ func (uc *usuarioUseCase) Create(usuario *domain.Usuario) error {
 		return errors.New("el objeto usuario no puede ser nulo")
 	}
 
-	// Validación de nombre
 	if len(strings.TrimSpace(usuario.Nombre)) == 0 {
 		return errors.New("el nombre no puede estar vacío")
 	}
 
-	// Validación de apodo
 	if len(strings.TrimSpace(usuario.Apodo)) == 0 {
 		return errors.New("el apodo no puede estar vacío")
 	}
 
-	// Validación de email
 	if len(strings.TrimSpace(usuario.Email)) == 0 {
 		return errors.New("el email no puede estar vacío")
 	}
 
-	// Validar formato de email
 	if !pkg.IsValidEmail(usuario.Email) {
 		return errors.New("el formato del email no es válido")
 	}
 
-	// Validación de contraseña
 	if len(strings.TrimSpace(usuario.Password)) < 8 {
 		return errors.New("la contraseña debe tener al menos 8 caracteres")
 	}
 
-	// Validar fortaleza de la contraseña
 	if err := pkg.ValidatePasswordStrength(usuario.Password); err != nil {
 		return err
 	}
 
-	// Verificar si el usuario ya existe por email
 	existingUsuario, code, err := uc.repo.GetByEmail(usuario.Email)
 	if err != nil && code != 404 {
-		// Solo retornar error si no es el error de "registro no encontrado"
 		return fmt.Errorf("error al verificar existencia de usuario: %w", err)
 	}
 
@@ -88,7 +79,6 @@ func (uc *usuarioUseCase) Create(usuario *domain.Usuario) error {
 		return errors.New("ya existe un usuario registrado con ese email")
 	}
 
-	// Hash de la contraseña
 	hashedPassword, err := pkg.HashPassword(usuario.Password)
 	if err != nil {
 		return errors.New("error al encriptar la contraseña")

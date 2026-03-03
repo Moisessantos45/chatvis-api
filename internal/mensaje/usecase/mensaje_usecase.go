@@ -84,8 +84,6 @@ func (s *mensajeUseCase) Update(id uint64, mensaje *domain.Mensaje) error {
 		return errors.New("el contenido del mensaje no puede estar vacío")
 	}
 
-	// Validar que no haya pasado más de 1 minuto desde la creación
-	// NOTA: en una arquitectura estrica, el GetById lo haríamos aquí para validar el tiempo de creación.
 	existingMensaje, err := s.repo.GetById(id)
 	if err != nil {
 		return err

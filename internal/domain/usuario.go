@@ -3,7 +3,6 @@ package domain
 import "time"
 
 // Usuario representa la entidad de dominio pura de un usuario.
-// Nota: No contiene etiquetas de base de datos (GORM) ni de enrutador (JSON).
 type Usuario struct {
 	Id       uint64    `json:"id"`
 	Nombre   string    `json:"nombre"`

@@ -9,7 +9,6 @@ import (
 	"time"
 )
 
-// Define las estructuras para el cuerpo de la solicitud y la respuesta
 type ChatMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`

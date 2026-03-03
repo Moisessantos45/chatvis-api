@@ -21,7 +21,6 @@ func (s *authUseCase) Authenticate(email, password string) (*domain.Usuario, err
 
 	user, code, err := s.repo.GetByEmail(email)
 	if err != nil && code != 404 {
-		// Solo retornar error si no es el error de "registro no encontrado"
 		return nil, fmt.Errorf("error al obtener el usuario: %w", err)
 	}
 
@@ -34,20 +33,18 @@ func (s *authUseCase) Authenticate(email, password string) (*domain.Usuario, err
 		return nil, errors.New("Las credenciales son incorrectas")
 	}
 
-	// Generate a new token for the user
 	token, err := pkg.GenerateJWT(fmt.Sprint(user.Id), user.Nombre, user.Email, user.IsAdmin)
 	if err != nil {
 		return nil, err
 	}
 
 	user.Token = token
-	// actualizar el token en la base de datos
 	err = s.repo.UpdateToken(user.Id, token)
 	if err != nil {
 		return nil, err
 	}
 
-	user.Password = "" // Limpiar el campo de la contraseña antes de devolver el usuario
+	user.Password = ""
 
 	return user, nil
 }
@@ -59,7 +56,7 @@ func (s *authUseCase) Logout(email string) error {
 	}
 
 	if existingUser == nil {
-		return nil // Si no existe, no hay nada que cerrar
+		return nil
 	}
 
 	existingUser.Token = ""
