@@ -1,5 +1,7 @@
 package ia
 
+import "os"
+
 type IAConfig struct {
 	UserID     string
 	LLMBaseURL string
@@ -10,31 +12,28 @@ type IAConfig struct {
 
 var AiConfigurations = []IAConfig{
 	{
-		UserID:     "14",
-		LLMBaseURL: "https://n8n.glimpse.uaslp.mx/ollama/api/generate",
-		LLMName:    "llama3.2",
-		LLMAPIKey:  "bc8af4b4-b264-4fae-b748-324693ab0151",
-		IsPromt:    false,
+		UserID:     "5",
+		LLMBaseURL: "http://localhost:11434/v1",
+		LLMName:    "gpt-oss:120b",
+		LLMAPIKey:  os.Getenv("LLM_API_KEY_1"),
 	},
 	{
-		UserID:     "15",
-		LLMBaseURL: "http://localhost:11434",
-		LLMName:    "gpt-oss:latest",
-		LLMAPIKey:  "bc8af4b4-b264-4fae-b748-324693ab0151",
+		UserID:     "6",
+		LLMBaseURL: "http://localhost:1234/v1/chat/completions",
+		LLMName:    "google/gemma-3-27b",
+		LLMAPIKey:  os.Getenv("LLM_API_KEY_2"),
 		IsPromt:    false,
 	},
-	{
-		UserID:     "16",
-		LLMBaseURL: "http://localhost:11434",
-		LLMName:    "gemma3:27b",
-		LLMAPIKey:  "bc8af4b4-b264-4fae-b748-324693ab0151",
-		IsPromt:    false,
-	},
-	{
-		UserID:     "17",
-		LLMBaseURL: "http://localhost:11434",
-		LLMName:    "qwen2.5:32b",
-		LLMAPIKey:  "bc8af4b4-b264-4fae-b748-324693ab0151",
-		IsPromt:    false,
-	},
+	// {
+	// 	UserID:     "7",
+	// 	LLMBaseURL: "http://localhost:1234/api/chat",
+	// 	LLMName:    "gemma3:27b",
+	// 	LLMAPIKey:  os.Getenv("LLM_API_KEY_3"),
+	// },
+	// {
+	// 	UserID:     "8",
+	// 	LLMBaseURL: "http://localhost:1234/api/chat",
+	// 	LLMName:    "qwen3-coder:480b-cloud",
+	// 	LLMAPIKey:  os.Getenv("LLM_API_KEY_4"),
+	// },
 }
