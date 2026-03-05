@@ -14,7 +14,7 @@ var AiConfigurations = []IAConfig{
 	{
 		UserID:     "5",
 		LLMBaseURL: "http://localhost:11434/v1",
-		LLMName:    "gpt-oss:120b",
+		LLMName:    "gemma3:27b",
 		LLMAPIKey:  os.Getenv("LLM_API_KEY_1"),
 	},
 	{

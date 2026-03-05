@@ -121,7 +121,6 @@ func main() {
 				for _, service := range aiServices {
 					if wsHub.CheckUserInGroup(service.Config.UserID, msg.GroupID) {
 						service.InputChannel() <- msg
-						break
 					}
 				}
 			}
