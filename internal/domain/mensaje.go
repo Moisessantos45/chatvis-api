@@ -19,7 +19,7 @@ type Mensaje struct {
 type MensajeRepository interface {
 	GetAll() ([]Mensaje, error)
 	GetById(id uint64) (*Mensaje, error)
-	GetAllByGrupoId(grupoId uint64) ([]Mensaje, error)
+	GetAllByGrupoId(grupoId uint64, startDate time.Time, endDate time.Time) ([]Mensaje, error)
 	GetAllByGrupoClave(clave string) ([]Mensaje, error)
 	Create(mensaje *Mensaje) (*Mensaje, error)
 	Update(id uint64, mensaje *Mensaje) error
@@ -33,7 +33,7 @@ type MensajeRepository interface {
 type MensajeUseCase interface {
 	GetAll() ([]Mensaje, error)
 	GetById(id uint64) (*Mensaje, error)
-	GetAllByGrupoId(grupoId uint64) ([]Mensaje, error)
+	GetAllByGrupoId(grupoId uint64, startDate time.Time, endDate time.Time) ([]Mensaje, error)
 	GetAllByGrupoClave(clave string) ([]Mensaje, error)
 	Create(mensaje *Mensaje) (*Mensaje, error)
 	Update(id uint64, mensaje *Mensaje) error
