@@ -36,12 +36,12 @@ func (s *mensajeUseCase) GetById(id uint64) (*domain.Mensaje, error) {
 	return s.repo.GetById(id)
 }
 
-func (s *mensajeUseCase) GetAllByGrupoId(grupoId uint64) ([]domain.Mensaje, error) {
+func (s *mensajeUseCase) GetAllByGrupoId(grupoId uint64, startDate time.Time, endDate time.Time) ([]domain.Mensaje, error) {
 	if grupoId <= 0 {
 		return nil, errors.New("el ID del grupo debe ser mayor que cero")
 	}
 
-	return s.repo.GetAllByGrupoId(grupoId)
+	return s.repo.GetAllByGrupoId(grupoId, startDate, endDate)
 }
 
 func (s *mensajeUseCase) Create(mensaje *domain.Mensaje) (*domain.Mensaje, error) {

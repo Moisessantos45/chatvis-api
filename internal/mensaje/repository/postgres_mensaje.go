@@ -87,16 +87,28 @@ func (r *postgresMensajeRepository) GetById(id uint64) (*domain.Mensaje, error) 
 	return mapGormToDomainMensaje(&gormMensaje), nil
 }
 
-func (r *postgresMensajeRepository) GetAllByGrupoId(grupoId uint64) ([]domain.Mensaje, error) {
+func (r *postgresMensajeRepository) GetAllByGrupoId(grupoId uint64, startDate, endDate time.Time) ([]domain.Mensaje, error) {
 	var gormMensajes []models.Mensajes
 
-	err := r.db.
+	query := r.db.
 		Preload("Usuario", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "nombre", "apodo")
 		}).
-		Where("id_grupo = ?", grupoId).
-		Find(&gormMensajes).Error
+		Where("id_grupo = ?", grupoId)
 
+	if !startDate.IsZero() {
+		fechaInicio := time.Date(startDate.Year(), startDate.Month(), startDate.Day(), 0, 0, 0, 0, time.UTC)
+		query = query.Where("fecha >= ?", fechaInicio)
+		log.Printf("Agregado filtro inicio: %v", fechaInicio)
+	}
+
+	if !endDate.IsZero() {
+		fechaFin := time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, time.UTC)
+		query = query.Where("fecha <= ?", fechaFin)
+		log.Printf("Agregado filtro fin: %v", fechaFin)
+	}
+
+	err := query.Find(&gormMensajes).Error
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +119,6 @@ func (r *postgresMensajeRepository) GetAllByGrupoId(grupoId uint64) ([]domain.Me
 
 	var mensajes []domain.Mensaje
 	for _, gm := range gormMensajes {
-		log.Println("Mensaje: ", gm)
 		mensajes = append(mensajes, *mapGormToDomainMensaje(&gm))
 	}
 
