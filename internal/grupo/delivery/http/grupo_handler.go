@@ -22,6 +22,7 @@ func NewGrupoHandler(group fiber.Router, gu domain.GrupoUseCase) {
 	group.Get("/user/:id", handler.GetAllGruposByUsuarioId)
 	group.Get("/:id", handler.GetGrupoById)
 	group.Post("", handler.CreateGrupo)
+	group.Post("/generate-code/:id", handler.CreateInvitationUrl)
 }
 
 // NewAdminGrupoHandler registra endpoints de grupos para administradores
@@ -81,6 +82,19 @@ func (h *GrupoHandler) GetAllGruposByUsuarioId(c *fiber.Ctx) error {
 	}
 
 	return pkg.ResponseJson(c, fiber.StatusOK, "Grupos obtenidos correctamente", "", result)
+}
+
+func (h *GrupoHandler) CreateInvitationUrl(c *fiber.Ctx) error {
+	id, err := pkg.ValidateParamsId(c)
+	if err != nil {
+		return pkg.ResponseJson(c, fiber.StatusBadRequest, "Error al generar URL de invitación", "Error parametro", err.Error())
+	}
+
+	url, clave, err := h.GUsecase.CreateInvitationUrl(id)
+	return pkg.ResponseJson(c, fiber.StatusOK, "URL de invitación generada correctamente", "", map[string]string{
+		"url":   url,
+		"clave": clave,
+	})
 }
 
 func (h *GrupoHandler) CreateGrupo(c *fiber.Ctx) error {

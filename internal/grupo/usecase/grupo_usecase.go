@@ -4,6 +4,8 @@ import (
 	"chatvis-chat/internal/domain"
 	"chatvis-chat/internal/pkg"
 	"errors"
+	"fmt"
+	"os"
 	"strings"
 	"time"
 )
@@ -69,6 +71,19 @@ func (s *grupoUseCase) GetByName(name string) (*domain.Grupo, error) {
 
 	group, _, err := s.repo.GetByName(name)
 	return group, err
+}
+
+func (s *grupoUseCase) CreateInvitationUrl(id uint64) (string, string, error) {
+	group, err := s.repo.GetById(id)
+	if err != nil {
+		return "", "", errors.New("error al obtener el grupo por ID: " + err.Error())
+	}
+
+	clave := pkg.UuidToBase58(group.Clave)
+	ip := pkg.GetOutboundIP()
+	port := os.Getenv("PORT_FRONTEND")
+
+	return fmt.Sprintf("http://%s:%s/join-group/%s", ip, port, clave), clave, nil
 }
 
 func (s *grupoUseCase) Create(grupo *domain.Grupo) error {

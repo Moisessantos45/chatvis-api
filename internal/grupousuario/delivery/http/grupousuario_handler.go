@@ -19,6 +19,7 @@ func NewGrupoUsuarioHandler(group fiber.Router, uc domain.GrupoUsuarioUseCase) {
 	group.Get("/:id", handler.GetByGrupoId)
 	group.Get("/group/:userId", handler.GetByUsuarioId)
 	group.Post("/add", handler.AddUserToGroup)
+	group.Post("/verify-membership", handler.VerifyMembership)
 }
 
 func NewAdminGrupoUsuarioHandler(group fiber.Router, uc domain.GrupoUsuarioUseCase) {
@@ -58,17 +59,43 @@ func (h *GrupoUsuarioHandler) GetByUsuarioId(c *fiber.Ctx) error {
 	return pkg.ResponseJson(c, fiber.StatusOK, "Usuario obtenido correctamente", "", result)
 }
 
-func (h *GrupoUsuarioHandler) AddUserToGroup(c *fiber.Ctx) error {
+func (h *GrupoUsuarioHandler) VerifyMembership(c *fiber.Ctx) error {
+	userId, ok := pkg.GetUserId(c)
+	if !ok {
+		return pkg.ResponseJson(c, fiber.StatusUnauthorized, "Usuario no autenticado", "Error de autenticación", "No se pudo obtener el ID del usuario")
+	}
+
 	var body struct {
-		Clave     string `json:"clave"`
-		UsuarioId uint64 `json:"usuarioId"`
+		Clave string `json:"clave"`
 	}
 
 	if err := c.BodyParser(&body); err != nil {
 		return pkg.ResponseJson(c, fiber.StatusBadRequest, "Error al parsear el cuerpo de la solicitud", "Error de formato", err.Error())
 	}
 
-	if err := h.Usecase.JoinGroup(body.UsuarioId, body.Clave); err != nil {
+	isMember, err := h.Usecase.VerifyMembership(userId, body.Clave)
+	if err != nil {
+		return pkg.ResponseJson(c, fiber.StatusInternalServerError, "Error al verificar membresía", "Error interno", err.Error())
+	}
+
+	return pkg.ResponseJson(c, fiber.StatusOK, "Membresía verificada correctamente", "", map[string]bool{"isMember": isMember})
+}
+
+func (h *GrupoUsuarioHandler) AddUserToGroup(c *fiber.Ctx) error {
+	userId, ok := pkg.GetUserId(c)
+	if !ok {
+		return pkg.ResponseJson(c, fiber.StatusUnauthorized, "Usuario no autenticado", "Error de autenticación", "No se pudo obtener el ID del usuario")
+	}
+
+	var body struct {
+		Clave string `json:"clave"`
+	}
+
+	if err := c.BodyParser(&body); err != nil {
+		return pkg.ResponseJson(c, fiber.StatusBadRequest, "Error al parsear el cuerpo de la solicitud", "Error de formato", err.Error())
+	}
+
+	if err := h.Usecase.JoinGroup(userId, body.Clave); err != nil {
 		return pkg.ResponseJson(c, fiber.StatusInternalServerError, "Error al crear grupo de usuario", "Error interno", err.Error())
 	}
 

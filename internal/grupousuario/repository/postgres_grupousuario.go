@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"chatvis-chat/internal/models"
 	"chatvis-chat/internal/domain"
+	"chatvis-chat/internal/models"
 
 	"gorm.io/gorm"
 )
@@ -54,6 +54,22 @@ func (r *postgresGrupoUsuarioRepository) GetByUsuarioId(usuarioId uint64) (*doma
 		return nil, err
 	}
 	return mapGormToDomainGrupoUsuario(&grupoUsuario), nil
+}
+
+func (r *postgresGrupoUsuarioRepository) VerifyMembership(userId uint64, clave string) (bool, error) {
+	var exists bool
+	err := r.db.Raw(`
+        SELECT EXISTS (
+            SELECT 1 FROM grupos_usuarios
+            JOIN grupos ON grupos_usuarios.id_grupo = grupos.id
+            WHERE grupos_usuarios.id_usuario = ? AND grupos.clave = ?
+        )`, userId, clave).Scan(&exists).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
 }
 
 func (r *postgresGrupoUsuarioRepository) Create(grupoUsuario *domain.GrupoUsuario) error {

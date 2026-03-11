@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"chatvis-chat/internal/domain"
+	"chatvis-chat/internal/pkg"
 	"errors"
 	"log"
 	"strings"
@@ -35,6 +36,23 @@ func (u *grupoUsuarioUseCase) GetByUsuarioId(usuarioId uint64) (*domain.GrupoUsu
 	return u.repo.GetByUsuarioId(usuarioId)
 }
 
+func (u *grupoUsuarioUseCase) VerifyMembership(userId uint64, clave string) (bool, error) {
+	log.Println("VerifyMembership - Clave:", clave, "ID Usuario:", userId)
+
+	if len(strings.TrimSpace(clave)) == 0 {
+		return false, errors.New("la clave no puede estar vacía")
+	}
+
+	extractClave := pkg.Base58ToUuid(clave)
+	log.Println("Clave extraída:", extractClave)
+
+	if userId <= 0 {
+		return false, errors.New("el ID del usuario debe ser mayor que cero")
+	}
+
+	return u.repo.VerifyMembership(userId, extractClave)
+}
+
 func (u *grupoUsuarioUseCase) JoinGroup(userId uint64, clave string) error {
 	log.Println("JoinGroup - Clave:", clave, "ID Usuario:", userId)
 
@@ -42,11 +60,14 @@ func (u *grupoUsuarioUseCase) JoinGroup(userId uint64, clave string) error {
 		return errors.New("la clave no puede estar vacía")
 	}
 
+	extractClave := pkg.Base58ToUuid(clave)
+	log.Println("Clave extraída:", extractClave)
+
 	if userId <= 0 {
 		return errors.New("el ID del usuario debe ser mayor que cero")
 	}
 
-	existsGroup, statusCode, err := u.repoGrupo.GetByClave(clave)
+	existsGroup, statusCode, err := u.repoGrupo.GetByClave(extractClave)
 
 	if err != nil {
 		return err
