@@ -10,6 +10,7 @@ type GrupoUsuario struct {
 type GrupoUsuarioRepository interface {
 	GetByGrupoId(grupoId uint64) ([]GrupoUsuario, error)
 	GetByUsuarioId(usuarioId uint64) (*GrupoUsuario, error)
+	VerifyMembership(userId uint64, clave string) (bool, error)
 	Create(grupoUsuario *GrupoUsuario) error
 }
 
@@ -17,6 +18,7 @@ type GrupoUsuarioRepository interface {
 type GrupoUsuarioUseCase interface {
 	JoinGroup(userId uint64, claveGrupo string) error
 	JoinGroups(usersIds []uint64, groupsIds []uint64) error
+	VerifyMembership(userId uint64, clave string) (bool, error)
 	GetUsersByGroupId(grupoId uint64) ([]GrupoUsuario, error)
 	GetByUsuarioId(usuarioId uint64) (*GrupoUsuario, error)
 }

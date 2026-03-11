@@ -35,5 +35,6 @@ type GrupoUseCase interface {
 	GetAllByUsuarioId(usuarioId uint64) ([]Grupo, error)
 	GetAllGruposByUsuarioIdToClaves(usuarioId uint64) ([]string, error)
 	GetByName(name string) (*Grupo, error)
+	CreateInvitationUrl(id uint64) (string, string, error)
 	Create(grupo *Grupo) error
 }
